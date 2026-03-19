@@ -27,7 +27,7 @@ export const CreateProposal = () => {
     createProposal({
       metadata,
       onSuccess: (proposalAddress: string) => {
-        appNavigation.proposalPage.root(dao!.daoAddress, proposalAddress);
+        appNavigation.proposalPage.root(proposalAddress);
         setFormData({} as ProposalFormType);
         addProposal(dao!.daoAddress, proposalAddress);
       },

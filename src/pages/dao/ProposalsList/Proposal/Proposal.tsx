@@ -70,7 +70,6 @@ const useHideProposal = (proposalAddress: string) => {
 
 export const Proposal = ({ proposalAddress }: { proposalAddress: string }) => {
   const { proposalPage } = useAppNavigation();
-  const { daoAddress } = useAppParams();
   const [ref, { entry }] = useIntersectionObserver();
   const isVisible = entry && entry.isIntersecting;
 
@@ -94,8 +93,8 @@ export const Proposal = ({ proposalAddress }: { proposalAddress: string }) => {
   );
 
   const onClick = () => {
-    if (daoAddress && proposalAddress) {
-      proposalPage.root(daoAddress, proposalAddress);
+    if (proposalAddress) {
+      proposalPage.root(proposalAddress);
     }
   };
 

@@ -94,7 +94,7 @@ export const VERIFIED_DAOS = [
   "EQCYKDjk-ewf6lE3UWT5ASoLRE1P5mJK66PaCpM-i6XFbMAM",
   "EQASdvqdzC3OhmXtheVF9szAMKH_Kn_eowb-dIl2moxTN1PC",
   "EQAW6n5B029HoOFkRFeMXyGDvUBF6gbVrS6bnNYJ6aWv_y1S",
-  "EQD1PIvZLeDmgICYjkzEbvyIZRWNQNS6izrxQJuoXZk_uF2y"
+  "EQD1PIvZLeDmgICYjkzEbvyIZRWNQNS6izrxQJuoXZk_uF2y",
 ];
 
 export const releaseMode = import.meta.env.VITE_STAGING
@@ -179,8 +179,7 @@ export const STRATEGY_ARGUMENTS = [
   { name: "nft", key: "nft-address" },
 ];
 
-export const TELEGRAM_SUPPORT_GROUP =
-  "https://t.me/dao_gradosphera_support_bot";
+export const TELEGRAM_SUPPORT_GROUP = "https://t.me/gradosphera?direct";
 export const PROD_TEST_DAOS: string[] = [];
 
 export const REFETCH_INTERVALS = {

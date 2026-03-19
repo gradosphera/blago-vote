@@ -128,6 +128,38 @@ export const useRouter = () => {
                 },
               ],
             },
+            // legacy proposal routes
+            {
+              path: routes.proposalLegacy,
+              errorElement: <Navigate to={routes.spaces} />,
+              element: (
+                <Suspense fallback={<PageFallback />}>
+                  <Proposal />
+                </Suspense>
+              ),
+              children: [
+                {
+                  path: routes.proposalLegacy,
+                  errorElement: <Navigate to={routes.spaces} />,
+                  element: (
+                    <Suspense fallback={<PageFallback />}>
+                      <ProposalDisplay />
+                    </Suspense>
+                  ),
+                },
+                {
+                  path: routes.editProposalLegacy,
+                  errorElement: <Navigate to={routes.spaces} />,
+                  element: devFeatures ? (
+                    <Suspense fallback={<PageFallback />}>
+                      <EditProposal />
+                    </Suspense>
+                  ) : (
+                    <Navigate to={routes.proposal} />
+                  ),
+                },
+              ],
+            },
           ],
           errorElement: (
             <Suspense fallback={<PageFallback />}>

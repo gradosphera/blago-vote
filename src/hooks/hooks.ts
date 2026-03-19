@@ -344,8 +344,8 @@ export const useGetProposalStatusCallback = () => {
 export const useAppParams = () => {
   const params = useParams();
   return {
-    daoAddress: params.daoId as string,
-    proposalAddress: params.proposalId as string,
+    daoAddress: (params.daoId as string) || "",
+    proposalAddress: (params.proposalId as string) || "",
   };
 };
 

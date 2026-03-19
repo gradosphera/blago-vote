@@ -6,7 +6,7 @@ import {
   TitleContainer,
   Img,
 } from "components";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useEffect, useMemo, useRef } from "react";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 import moment from "moment";
 import { useProposalPageTranslations } from "i18n/hooks/useProposalPageTranslations";
@@ -212,26 +212,24 @@ const Asset = ({
   metadata?: any;
   label: string;
 }) => {
-  if (!address) {
-    return null;
-  }
+  const lastKnownNameRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (metadata?.name) {
+      lastKnownNameRef.current = metadata.name;
+    }
+  }, [metadata?.name]);
 
-  if (!metadata) {
-    return (
-      <InformationRow label={label}>
-        <AddressDisplay address={address} />
-      </InformationRow>
-    );
-  }
+  if (!address) return null;
+  const displayName = metadata?.name || lastKnownNameRef.current || address;
 
   return (
     <InformationRow label={label}>
       <StyledAsset
-        href={metadata.external_url || getTonScanContractUrl(address)}
+        href={getTonScanContractUrl(address)}
         target="_blank"
       >
-        <OverflowWithTooltip text={metadata.name} />
-        {metadata.image && <Img className="asset-img" src={metadata.image} />}
+        <OverflowWithTooltip text={displayName} />
+        {metadata?.image && <Img className="asset-img" src={metadata.image} />}
       </StyledAsset>
     </InformationRow>
   );

@@ -39,11 +39,10 @@ const parseMetadata = (metadata?: ProposalMetadata) => {
 };
 
 export function EditProposal() {
-  const { daoAddress } = useAppParams();
-  const { data: dao } = useDaoQuery(daoAddress);
   const { proposalAddress } = useAppParams();
 
-  const { data: proposal } = useProposalQuery(proposalAddress);
+  const { data: proposal } = useProposalQuery(proposalAddress!);
+  const { data: dao } = useDaoQuery(proposal?.daoAddress || "");
   const { proposalStatus } = useProposalStatus(proposalAddress);
   const { mutate, isLoading } = useUpdateProposalMutation();
 
@@ -104,14 +103,13 @@ const StyledWarningFlex = styled(StyledFlexColumn)({
 });
 
 const Container = ({ children }: { children: ReactNode }) => {
-  const { daoAddress } = useAppParams();
-
-  const { data: dao } = useDaoQuery(daoAddress);
   const { proposalAddress } = useAppParams();
+  const { data: proposal } = useProposalQuery(proposalAddress!);
+  const { data: dao } = useDaoQuery(proposal?.daoAddress || "");
 
   const back = () => {
     if (!dao) return "";
-    return appNavigation.proposalPage.root(dao.daoAddress, proposalAddress);
+    return appNavigation.proposalPage.root(proposalAddress!);
   };
 
   return (

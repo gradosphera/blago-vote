@@ -1,9 +1,4 @@
-import {
-  BLACKLISTED_DAOS,
-  IS_DEV,
-  TONVIEWER_ADDRESS_URL,
-  VERIFIED_DAOS,
-} from "config";
+import { BLACKLISTED_DAOS, IS_DEV, TONVIEWER, VERIFIED_DAOS } from "config";
 import _ from "lodash";
 import moment from "moment";
 import { Address, fromNano } from "ton";
@@ -140,9 +135,19 @@ export const urlPatternValidation = (URL: string) => {
   return regex.test(URL);
 };
 
+export const toTonviewerAddress = (address?: string) => {
+  if (!address) return "";
+  try {
+    // Tonviewer принимает friendly (EQ...) адреса; конвертируем из raw "0:..."
+    return Address.parse(address).toString({ urlSafe: true, bounceable: true });
+  } catch {
+    return address;
+  }
+};
+
 export const getTonScanContractUrl = (address?: string) => {
   if (!address) return "";
-  return `${TONVIEWER_ADDRESS_URL}/${address}`;
+  return `${TONVIEWER}/${toTonviewerAddress(address)}`;
 };
 
 export const calculateTonAmount = (

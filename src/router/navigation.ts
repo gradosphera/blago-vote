@@ -10,14 +10,10 @@ export const appNavigation = {
     settings: (daoId: string) => routes.spaceSettings.replace(":daoId", daoId),
   },
   proposalPage: {
-    root: (daoId: string, proposalId: string) =>
-      routes.proposal
-        .replace(":daoId", daoId)
-        .replace(":proposalId", proposalId),
-    edit: (daoId: string, proposalId: string) =>
-      routes.editProposal
-        .replace(":daoId", daoId)
-        .replace(":proposalId", proposalId),
+    root: (proposalId: string) =>
+      routes.proposal.replace(":proposalId", proposalId),
+    edit: (proposalId: string) =>
+      routes.editProposal.replace(":proposalId", proposalId),
   },
 };
 
@@ -32,11 +28,11 @@ export const useAppNavigation = () => {
       about: (daoId: string) => navigate(appNavigation.daoPage.about(daoId)),
     },
     proposalPage: {
-      edit: (daoId: string, proposalId: string) =>
-        navigate(appNavigation.proposalPage.edit(daoId, proposalId)),
-      
-      root: (daoId: string, proposalId: string) =>
-        navigate(appNavigation.proposalPage.root(daoId, proposalId)),
+      edit: (proposalId: string) =>
+        navigate(appNavigation.proposalPage.edit(proposalId)),
+
+      root: (proposalId: string) =>
+        navigate(appNavigation.proposalPage.root(proposalId)),
     },
     daosPage: {
       root: () => navigate(routes.spaces),

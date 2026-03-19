@@ -156,10 +156,12 @@ export const useDaoQuery = (daoAddress: string) => {
   const route = useCurrentRoute();
 
   const config = useMemo(() => {
+    const isProposalRoute =
+      route === routes.proposal || route === routes.proposalLegacy;
     return {
-      staleTime: route === routes.proposal ? Infinity : 5_000,
+      staleTime: isProposalRoute ? Infinity : 5_000,
       refetchInterval:
-        route === routes.proposal ? undefined : REFETCH_INTERVALS.dao,
+        isProposalRoute ? undefined : REFETCH_INTERVALS.dao,
     };
   }, [route]);
 
@@ -410,8 +412,10 @@ export const useProposalQuery = (
   const getProposalWithFallback = useGetProposalWithFallback(proposalAddress);
 
   const config = useMemo(() => {
+    const isProposalRoute =
+      route === routes.proposal || route === routes.proposalLegacy;
     return {
-      refetchInterval: route === routes.proposal ? 15_000 : 30_000,
+      refetchInterval: isProposalRoute ? 15_000 : 30_000,
     };
   }, [route]);
 

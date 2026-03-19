@@ -455,7 +455,7 @@ export const useUpdateProposalMutation = () => {
 
   const getProposalStatus = useGetProposalStatusCallback();
 
-  const { refetch } = useProposalQuery(proposalAddress);
+  const { refetch } = useProposalQuery(proposalAddress!);
   const { proposalPage } = useAppNavigation();
 
   return useMutation(
@@ -473,21 +473,25 @@ export const useUpdateProposalMutation = () => {
 
       const sender = getSender();
       const client = await getClientV2();
+      const resolvedDaoAddress = daoAddress || proposalQuery.data?.daoAddress;
+      if (!resolvedDaoAddress) {
+        throw new Error("DAO address is missing");
+      }
 
       await updateProposal(
         sender,
         client,
         TX_FEES.FORWARD_MSG.toString(),
-        daoAddress,
-        proposalAddress,
+        resolvedDaoAddress,
+        proposalAddress!,
         metadata
       );
     },
     {
       onSuccess: () => {
         showSuccessToast("Proposal updated");
-        setProposalUpdateMillis(proposalAddress);
-        proposalPage.root(daoAddress, proposalAddress);
+        setProposalUpdateMillis(proposalAddress!);
+        proposalPage.root(proposalAddress!);
       },
       onError: (error: Error) => {
         errorToast(error);

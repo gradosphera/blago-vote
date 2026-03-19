@@ -95,7 +95,9 @@ export function ProposalDisplay() {
   const [showError, setShowError] = useState(false);
   const { daoAddress, proposalAddress } = useAppParams();
 
-  const error = useProposalQuery(proposalAddress).error;
+  const proposalQuery = useProposalQuery(proposalAddress);
+  const error = proposalQuery.error;
+  const proposal = proposalQuery.data;
   
 
   useEffect(() => {
@@ -107,10 +109,15 @@ export function ProposalDisplay() {
   const errorContainer =  showError;
 
   const isMock = mock.isMockProposal(proposalAddress);
+  const backUrl = proposal?.daoAddress
+    ? appNavigation.daoPage.root(proposal.daoAddress)
+    : daoAddress
+    ? appNavigation.daoPage.root(daoAddress)
+    : appNavigation.spaces;
 
   return (
     <Page
-      back={appNavigation.daoPage.root(daoAddress)}
+      back={backUrl}
       headerComponent={!isMock && <EditButton />}
     >
       {errorContainer ? (
@@ -128,9 +135,10 @@ export default ProposalDisplay;
 
 const EditButton = () => {
   const { proposalPage } = useAppNavigation();
-  const { daoAddress, proposalAddress } = useAppParams();
+  const { proposalAddress } = useAppParams();
 
-  const { data: dao } = useDaoQuery(daoAddress);
+  const { data: proposal } = useProposalQuery(proposalAddress);
+  const { data: dao } = useDaoQuery(proposal?.daoAddress || "");
 
   const devFeatures = useDevFeatures();
   const {isLoading} = useProposalQuery(proposalAddress)
@@ -144,7 +152,7 @@ const EditButton = () => {
   return (
     <AppTooltip text="Редактировать">
       <StyledEditButton
-        onClick={() => proposalPage.edit(daoAddress, proposalAddress)}
+        onClick={() => proposalPage.edit(proposalAddress)}
       >
         <MdOutlineModeEditOutline
           style={{ width: 20, height: 20, color: "white" }}

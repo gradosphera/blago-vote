@@ -3,8 +3,12 @@ import _ from "lodash";
 export const routes = {
   spaces: "/",
   createSpace: "/setup",
-  proposal: "/:daoId/proposal/:proposalId",
-  editProposal: "/:daoId/proposal/:proposalId/edit",
+  // short proposal routes (preferred)
+  proposal: "/proposal/:proposalId",
+  editProposal: "/proposal/:proposalId/edit",
+  // legacy routes (kept for backward compatibility)
+  proposalLegacy: "/:daoId/proposal/:proposalId",
+  editProposalLegacy: "/:daoId/proposal/:proposalId/edit",
   space: "/:daoId",
   spaceAbout: "/:daoId/about",
   spaceSettings: "/:daoId/settings",
@@ -18,8 +22,8 @@ export const flatRoutes = _.map(routes, (value) => {
 export const TOOLBAR_WIDTH = 60;
 export const ZERO_ADDRESS = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c";
 
-export const TELETGRAM_URL = "https://t.me/dao_gradosphera";
-export const SUPPORT_URL = "https://t.me/dao_gradosphera_support_bot";
+export const TELETGRAM_URL = "https://t.me/gradosphera";
+export const SUPPORT_URL = "https://t.me/gradosphera?direct";
 export const WHITEPAPER_URL = "https://github.com/gradosphera/whitepaper";
 export const ABOUT_URL = "https://gradosphera.org";
 export const ABOUT_CHARS_LIMIT = 2350;
