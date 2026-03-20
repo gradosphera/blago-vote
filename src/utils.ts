@@ -145,6 +145,24 @@ export const toTonviewerAddress = (address?: string) => {
   }
 };
 
+export const toNoBounceAddress = (address?: string) => {
+  if (!address) return "";
+  try {
+    return Address.parse(address).toString({ urlSafe: true, bounceable: false });
+  } catch {
+    return address;
+  }
+};
+
+export const normalizeTonAddress = (address?: string) => {
+  if (!address) return "";
+  try {
+    return Address.parse(address).toRawString();
+  } catch {
+    return address;
+  }
+};
+
 export const getTonScanContractUrl = (address?: string) => {
   if (!address) return "";
   return `${TONVIEWER}/${toTonviewerAddress(address)}`;

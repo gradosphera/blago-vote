@@ -6,6 +6,7 @@ import {
   PROD_TEST_DAOS,
   REFETCH_INTERVALS,
   BLACKLISTED_PROPOSALS,
+  CLIENT_V4_ENDPOINT,
 } from "config";
 import { Dao, Proposal } from "types";
 import _ from "lodash";
@@ -32,7 +33,7 @@ import {
 import { useSyncStore, useVotePersistedStore, useVoteStore } from "store";
 import { contract } from "contract";
 import { useCurrentRoute, useDevFeatures } from "hooks/hooks";
-import { fromNano } from "ton-core";
+import { Address, fromNano } from "ton-core";
 import { mock } from "mock/mock";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import {
@@ -47,6 +48,57 @@ import { routes } from "consts";
 import { lib } from "lib";
 import { useAnalytics } from "analytics";
 import { getProposalDescription } from "data/foundation/proposals-descriptions";
+
+const BLAGO_JETTON_ADDRESS = "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll";
+
+const toRaw = (address?: string) => {
+  if (!address) return "";
+  try {
+    return Address.parse(address).toRawString();
+  } catch {
+    return address;
+  }
+};
+
+const getWalletVariants = (address?: string) => {
+  if (!address) return [];
+  try {
+    const parsed = Address.parse(address);
+    return _.uniq([
+      address,
+      parsed.toRawString(),
+      parsed.toString({ urlSafe: true, bounceable: true }),
+      parsed.toString({ urlSafe: true, bounceable: false }),
+    ]);
+  } catch {
+    return [address];
+  }
+};
+
+const normalizeStrategyAddresses = (
+  proposal?: Proposal | null
+): Proposal | null | undefined => {
+  if (!proposal?.metadata?.votingPowerStrategies) return proposal;
+
+  const metadata = _.cloneDeep(proposal.metadata);
+  metadata.votingPowerStrategies = metadata.votingPowerStrategies.map(
+    (strategy) => ({
+      ...strategy,
+      arguments: (strategy.arguments || []).map((arg) => {
+        if (arg.name === "jetton-address" || arg.name === "nft-address") {
+          const value =
+            arg.name === "jetton-address" && !arg.value
+              ? BLAGO_JETTON_ADDRESS
+              : arg.value;
+          return { ...arg, value: toRaw(value) };
+        }
+        return arg;
+      }),
+    })
+  );
+
+  return { ...proposal, metadata };
+};
 
 export const useRegistryStateQuery = () => {
   const clients = useGetClients().data;
@@ -257,7 +309,8 @@ export const useGetClients = () => {
     async () => {
       return {
         clientV2: await getClientV2(),
-        clientV4: await getClientV4(),
+        // avoid unstable auto-routed gateways for snapshot calls
+        clientV4: await getClientV4(CLIENT_V4_ENDPOINT),
       };
     },
     {
@@ -276,30 +329,50 @@ export const useConnectedWalletVotingPowerQuery = (
   return useQuery(
     [QueryKeys.SIGNLE_VOTING_POWER, connectedWallet, proposalAddress],
     async ({ signal }) => {
+      const normalizedProposal = normalizeStrategyAddresses(proposal);
       const allNftHolders = await lib.getAllNFTHolders(
         proposalAddress!,
-        proposal?.metadata!,
+        normalizedProposal?.metadata!,
         signal
       );
       Logger(`Fetching voting power for account: ${connectedWallet}`);
 
       const strategy = getVoteStrategyType(
-        proposal?.metadata?.votingPowerStrategies
+        normalizedProposal?.metadata?.votingPowerStrategies
       );
 
-      const result = await getSingleVoterPower(
-        clients!.clientV4,
-        connectedWallet!,
-        proposal?.metadata!,
-        strategy,
-        allNftHolders
-      );
+      const wallets = getWalletVariants(connectedWallet);
+      let result = "0";
+      let hasSuccessfulQuery = false;
+      for (const wallet of wallets) {
+        try {
+          const current = await getSingleVoterPower(
+            clients!.clientV4,
+            wallet,
+            normalizedProposal?.metadata!,
+            strategy,
+            allNftHolders
+          );
+          hasSuccessfulQuery = true;
+          result = current;
+          if (Number(current) > 0) break;
+        } catch (error) {
+          Logger("getSingleVoterPower failed for wallet format", wallet, error);
+          continue;
+        }
+      }
+
+      if (!hasSuccessfulQuery) {
+        throw new Error("Failed to fetch voting power from RPC");
+      }
 
       const symbol = getProposalSymbol(
-        proposal?.metadata?.votingPowerStrategies
+        normalizedProposal?.metadata?.votingPowerStrategies
       );
 
-      if (getIsOneWalletOneVote(proposal?.metadata?.votingPowerStrategies)) {
+      if (
+        getIsOneWalletOneVote(normalizedProposal?.metadata?.votingPowerStrategies)
+      ) {
         return {
           votingPower: result,
           votingPowerText: `${nFormatter(Number(result))} ${symbol}`,

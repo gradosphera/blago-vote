@@ -10,7 +10,12 @@ import {
   TitleContainer,
 } from "components";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
-import { nFormatter, parseLanguage } from "utils";
+import {
+  nFormatter,
+  normalizeTonAddress,
+  parseLanguage,
+  toNoBounceAddress,
+} from "utils";
 import { PAGE_SIZE } from "config";
 import { Vote } from "types";
 import { fromNano } from "ton";
@@ -33,7 +38,6 @@ import { useProposalQuery } from "query/getters";
 const ContainerHeader = () => {
   const { proposalAddress } = useAppParams();
   const { data } = useProposalQuery(proposalAddress);
-  console.log({ data });
   
   const totalTonAmount =
     data?.proposalResult?.totalWeight ||
@@ -102,7 +106,7 @@ const StyledContainerHeader = styled(StyledFlexRow)({
 });
 
 export function Votes() {
-  const connectedAddress = useTonAddress();
+  const connectedAddress = normalizeTonAddress(useTonAddress());
   const [votesShowAmount, setShowVotesAMount] = useState(PAGE_SIZE);
   const translations = useProposalPageTranslations();
   const { proposalAddress } = useAppParams();
@@ -133,7 +137,10 @@ export function Votes() {
         <StyledList gap={0}>
           <ConnectedWalletVote />
           {data?.votes?.map((vote, index) => {
-            if (index >= votesShowAmount || vote.address === connectedAddress)
+            if (
+              index >= votesShowAmount ||
+              normalizeTonAddress(vote.address) === connectedAddress
+            )
               return null;
             return (
               <VoteComponent
@@ -204,12 +211,10 @@ const VoteComponent = ({
   symbol?: string;
   hideVotingPower: boolean;
 }) => {
-  const connectedAddress = useTonAddress();
-  const translations = useProposalPageTranslations();
   if (!data) return null;
   const { address, votingPower, vote, hash, timestamp } = data;
 
-  const isYou = connectedAddress === address;
+  const displayAddress = toNoBounceAddress(address);
 
   return (
     <StyledAppTooltip
@@ -219,7 +224,7 @@ const VoteComponent = ({
       <StyledVote justifyContent="flex-start">
         <StyledAddressDisplay
           address={address}
-          displayText={isYou ? translations.you : ""}
+          displayText={displayAddress}
         />
         <Typography
           className="vote"

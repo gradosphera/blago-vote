@@ -44,7 +44,12 @@ import {
   useVotePersistedStore,
   useVoteStore,
 } from "store";
-import { delay, getTxFee, Logger, validateAddress } from "utils";
+import {
+  delay,
+  getTxFee,
+  Logger,
+  validateAddress,
+} from "utils";
 import { CreateDaoArgs, CreateMetadataArgs, UpdateMetadataArgs } from "./types";
 import { useTonAddress } from "@tonconnect/ui-react";
 import { useAnalytics } from "analytics";

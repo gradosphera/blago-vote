@@ -6,7 +6,7 @@ import {
   useConnectedWalletVotingPowerQuery,
   useProposalQuery,
 } from "query/getters";
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode } from "react";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 
 interface Props {
@@ -22,17 +22,20 @@ export function VoteConfirmation({ open, onClose, vote, onSubmit }: Props) {
   const { proposalAddress } = useAppParams();
   const { data } = useProposalQuery(proposalAddress);
 
-  const { data: votingData, isLoading: votingDataLoading } =
+  const {
+    data: votingData,
+    isLoading: votingDataLoading,
+    isError: votingPowerError,
+  } =
     useConnectedWalletVotingPowerQuery(data, proposalAddress, !open);
 
   const votingPower = votingData?.votingPower;
-  
-  const NoVotingPower = !votingPower
+
+  const NoVotingPower = !votingPowerError && (!votingPower
     ? true
     : votingPower && Number(votingPower) === 0
     ? true
-    : false;
-    console.log(data?.metadata);
+    : false);
 
 
   return (
@@ -52,10 +55,15 @@ export function VoteConfirmation({ open, onClose, vote, onSubmit }: Props) {
             value={votingData?.votingPowerText}
           />
         </StyledFlexColumn>
+        {!votingDataLoading && votingPowerError && (
+          <InfoMessage
+            message="Не удалось проверить силу голоса по snapshot (ошибка RPC). Можно подтвердить голос, сеть пересчитает его на контракте."
+          />
+        )}
         {!votingDataLoading && NoVotingPower && (
           <InfoMessage
             message={translations.notEnoughVotingPower(
-              data?.metadata?.mcSnapshotBlock.toLocaleString() || ""
+              (data?.metadata?.mcSnapshotBlock ?? "").toString()
             )}
           />
         )}
