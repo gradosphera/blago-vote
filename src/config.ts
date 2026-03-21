@@ -10,7 +10,7 @@ export const manifestUrl =
   "https://vote.gradosphera.org/tonconnect-manifest.json";
 
 export const DEFAULT_CLIENT_V2_ENDPOINT =
-  "https://toncenter.com/api/v2/jsonRPC";
+  "https://toncenter.com/api/v3/jsonRPC";
 export const DEFAULT_CLIENT_V4_ENDPOINT = "https://mainnet-v4.tonhubapi.com";
 
 export const CLIENT_V2_API_KEY =
