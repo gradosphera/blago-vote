@@ -39,21 +39,57 @@ export const Logger = (...args: any) => {
   }
 };
 
+const getVotingPowerByAddress = (address: string, votingPower: VotingPower) => {
+  const rawAddress = normalizeTonAddress(address);
+  const normalizedByRaw = rawAddress ? votingPower[rawAddress] : undefined;
+  const normalizedByFriendly = votingPower[address];
+
+  return normalizedByRaw || normalizedByFriendly;
+};
+
+const extractVoteValue = (value: any) => {
+  return (
+    value?.vote ??
+    value?.choice ??
+    value?.choices ??
+    value?.option ??
+    value?.selection ??
+    ""
+  );
+};
+
 export const parseVotes = (
-  rawVotes: TonVoteSDK.Votes,
+  rawVotes: TonVoteSDK.Votes | Vote[] | Record<string, any>,
   votingPower: VotingPower
 ) => {
-  let votes: Vote[] = _.map(rawVotes, (v: RawVote, key: string) => {
-    const _votingPower = votingPower[key];
+  let votes: Vote[] = [];
 
-    return {
-      address: key,
-      vote: v.vote,
-      votingPower: _votingPower ? fromNano(_votingPower) : "0",
-      timestamp: v.timestamp,
-      hash: v.hash,
-    };
-  });
+  if (_.isArray(rawVotes)) {
+    votes = _.map(rawVotes, (item: any) => {
+      const address = item?.address || item?.voter || item?.wallet || "";
+      const _votingPower = getVotingPowerByAddress(address, votingPower);
+      return {
+        address,
+        vote: extractVoteValue(item),
+        votingPower: _votingPower ? fromNano(_votingPower) : "0",
+        timestamp: Number(item?.timestamp || item?.time || item?.utime || 0),
+        hash: item?.hash || item?.txHash || item?.transactionHash || "",
+      };
+    });
+  } else {
+    votes = _.map(rawVotes, (v: RawVote & Record<string, any>, key: string) => {
+      const address = v?.address || v?.voter || v?.wallet || key;
+      const _votingPower = getVotingPowerByAddress(address, votingPower);
+
+      return {
+        address,
+        vote: extractVoteValue(v),
+        votingPower: _votingPower ? fromNano(_votingPower) : "0",
+        timestamp: Number(v?.timestamp || v?.time || v?.utime || 0),
+        hash: v?.hash || v?.txHash || v?.transactionHash || "",
+      };
+    });
+  }
 
   const sortedVotes = _.orderBy(votes, "timestamp", ["desc", "asc"]);
   return sortedVotes;

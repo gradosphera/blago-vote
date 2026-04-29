@@ -1,5 +1,6 @@
 import _ from "lodash";
 import { TonClient, TonClient4, Transaction } from "ton";
+import { Cell } from "ton-core";
 import * as TonVoteSDK from "ton-vote-contracts-sdk";
 import {
   calcProposalResult,
@@ -17,8 +18,9 @@ import {
 import { Dao, Proposal } from "types";
 import { getVoteStrategyType, isNftProposal, Logger, parseVotes } from "utils";
 import retry from "async-retry";
-import { CONTRACT_RETRIES } from "config";
+import { CLIENT_V4_ENDPOINT, CONTRACT_RETRIES } from "config";
 import { api } from "api";
+import axios from "axios";
 
 interface GetProposalArgs {
   clientV2?: TonClient;
@@ -27,6 +29,110 @@ interface GetProposalArgs {
   metadata?: ProposalMetadata;
   maxLt?: string;
 }
+
+const VOTE_OPCODE = "0x7c420ea2";
+
+const parseChoiceFromRawBody = (rawBody?: string) => {
+  if (!rawBody) return "";
+  try {
+    const body = Cell.fromBoc(Buffer.from(rawBody, "hex"))[0];
+    const slice = body.beginParse();
+    slice.loadUint(32);
+    // Vote payload stores choice string in the first ref cell.
+    if (body.refs?.[0]) {
+      return body.refs[0].beginParse().loadStringTail().trim();
+    }
+    return slice.loadStringTail().trim();
+  } catch {
+    return "";
+  }
+};
+
+const getOneWalletOneVoteFallback = async (
+  proposalAddress: string,
+  metadata: ProposalMetadata
+) => {
+  const response = await axios.get(
+    `https://tonapi.io/v2/blockchain/accounts/${proposalAddress}/transactions?limit=100`
+  );
+  const txs = response.data?.transactions || [];
+  const choices = metadata.votingSystem?.choices || [];
+  const choicesByLowerCase = _.keyBy(choices, (it) => it.toLowerCase());
+  const votesByAddress: Record<
+    string,
+    { choice: string; timestamp: number; hash: string }
+  > = {};
+
+  _.forEach(txs, (tx: any) => {
+    const inMsg = tx?.in_msg;
+    if (!inMsg || inMsg.op_code !== VOTE_OPCODE) return;
+
+    const source = inMsg?.source?.address;
+    if (!source) return;
+
+    const parsedChoice = parseChoiceFromRawBody(inMsg.raw_body);
+    const choice =
+      choicesByLowerCase[parsedChoice.toLowerCase()] ||
+      _.find(choices, (it) => it.toLowerCase() === parsedChoice.toLowerCase());
+
+    if (!choice) return;
+
+    const timestamp = Number(tx?.utime || inMsg?.created_at || 0);
+    const previous = votesByAddress[source];
+    if (!previous || timestamp >= previous.timestamp) {
+      votesByAddress[source] = {
+        choice,
+        timestamp,
+        hash: inMsg?.hash || tx?.hash || "",
+      };
+    }
+  });
+
+  const votes = _.map(votesByAddress, (value, address) => ({
+    address,
+    vote: value.choice,
+    votingPower: "1",
+    timestamp: value.timestamp,
+    hash: value.hash,
+  }));
+
+  const totalVotes = votes.length;
+  const proposalResult = _.reduce(
+    choices,
+    (acc, choice) => {
+      const count = votes.filter((it) => it.vote === choice).length;
+      acc[choice.toLowerCase()] =
+        totalVotes > 0 ? Number(((count / totalVotes) * 100).toFixed(4)) : 0;
+      return acc;
+    },
+    { totalWeight: `${totalVotes}`, totalWeights: `${totalVotes}` } as Record<
+      string,
+      any
+    >
+  );
+
+  return {
+    votingPower: {},
+    proposalResult,
+    votes,
+    metadata,
+    maxLt: "",
+    rawVotes: {},
+  };
+};
+
+const getOneWalletOneVoteFallbackSafe = async (
+  proposalAddress: string,
+  metadata?: ProposalMetadata
+) => {
+  if (!metadata) return null;
+  try {
+    return await getOneWalletOneVoteFallback(proposalAddress, metadata);
+  } catch (error) {
+    Logger("1-wallet-1-vote fallback failed", error);
+    return null;
+  }
+};
 
 const getProposal = async (args: GetProposalArgs): Promise<Proposal | null> => {
   const { clientV2, clientV4, proposalAddress, maxLt } = args;
@@ -43,7 +149,7 @@ const getProposal = async (args: GetProposalArgs): Promise<Proposal | null> => {
       let newMaxLt = undefined;
 
       const _clientV2 = clientV2 || (await getClientV2());
-      const _clientV4 = clientV4 || (await getClientV4());
+      const _clientV4 = clientV4 || (await getClientV4(CLIENT_V4_ENDPOINT));
 
       const metadata =
         args.metadata ||
@@ -88,6 +194,21 @@ const getProposal = async (args: GetProposalArgs): Promise<Proposal | null> => {
       proposalResult.totalWeight = proposalResult.totalWeights;
       const { totalWeights, ...rest } = proposalResult;
       const votes = TonVoteSDK.getAllVotes(transactions, metadata);
+
+      if (
+        !Object.keys(votes).length &&
+        (proposalType === VotingPowerStrategyType.TonBalance_1Wallet1Vote ||
+          proposalType === VotingPowerStrategyType.JettonBalance_1Wallet1Vote ||
+          proposalType === VotingPowerStrategyType.NftCcollection_1Wallet1Vote)
+      ) {
+        const fallback = await getOneWalletOneVoteFallbackSafe(
+          proposalAddress,
+          metadata
+        );
+        if (fallback?.votes.length) {
+          return fallback;
+        }
+      }
 
       return {
         votingPower,
@@ -221,4 +342,5 @@ export const contract = {
   getProposal,
   getDao,
   getProposalResultsAfterVote,
+  getOneWalletOneVoteFallback: getOneWalletOneVoteFallbackSafe,
 };

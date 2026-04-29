@@ -40,7 +40,6 @@ import {
   getIsOneWalletOneVote,
   getproposalResult,
   getProposalResultTonAmount,
-  getProposalResultVotes,
   getProposalStatus,
   getProposalSymbol,
   getStrategyArgument,
@@ -268,27 +267,70 @@ export const useProposalResults = (proposalAddress: string) => {
     if (!proposal) return [];
 
     const choices = proposal?.metadata?.votingSystem.choices;
+    if (!choices || !choices.length) return [];
     const symbol = getProposalSymbol(proposal.metadata?.votingPowerStrategies);
     const type = getVoteStrategyType(proposal.metadata?.votingPowerStrategies);
     const isOneWalletOneVote = getIsOneWalletOneVote(
       proposal.metadata?.votingPowerStrategies
     );
+    const choicesByLowerCase = _.keyBy(choices, (it) => it.toLowerCase());
 
-    return _.map(choices, (choice, index) => {
+    const votesByChoice = _.reduce(
+      proposal.votes,
+      (acc, currentVote) => {
+        const rawVotes = _.isArray(currentVote.vote)
+          ? currentVote.vote
+          : [currentVote.vote];
+
+        _.forEach(rawVotes, (rawVoteValue) => {
+          const value = String(rawVoteValue ?? "").trim();
+          if (!value) return;
+
+          const numericIndex = Number(value);
+          if (!Number.isNaN(numericIndex)) {
+            const zeroBasedChoice = choices[numericIndex];
+            const oneBasedChoice = choices[numericIndex - 1];
+            const indexedChoice = zeroBasedChoice || oneBasedChoice;
+            if (indexedChoice) {
+              acc[indexedChoice] = (acc[indexedChoice] || 0) + 1;
+              return;
+            }
+          }
+
+          const byExact = choicesByLowerCase[value.toLowerCase()];
+          const byTrimmed = _.find(
+            choices,
+            (choice) => choice.substring(0, 127).toLowerCase() === value.toLowerCase()
+          );
+          const matchedChoice = byExact || byTrimmed;
+          if (matchedChoice) {
+            acc[matchedChoice] = (acc[matchedChoice] || 0) + 1;
+          }
+        });
+
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const totalVotes = _.sum(_.values(votesByChoice));
+
+    return _.map(choices, (choice) => {
       const result = getproposalResult(proposal, choice.substring(0, 127));
-      const percent = result || 0;
+      const votesCount = votesByChoice[choice] || 0;
+      const percent = totalVotes > 0 ? _.round((votesCount / totalVotes) * 100, 2) : 0;
 
       const amount = getProposalResultTonAmount(
         proposal,
         choice,
-        percent,
+        Number(result) || 0,
         proposal.proposalResult["totalWeight"] ||
           proposal.proposalResult["totalWeights"],
         type
       );
 
       return {
-        votesCount: getProposalResultVotes(proposal, choice.substring(0, 127)),
+        votesCount,
         choice,
         percent,
         amount: isOneWalletOneVote ? undefined : `${amount} ${symbol}`,

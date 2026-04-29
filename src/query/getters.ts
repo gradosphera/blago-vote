@@ -406,6 +406,34 @@ const useGetProposalWithFallback = (proposalAddress: string) => {
   return async (key: QueryKey, maxLt?: string, signal?: AbortSignal) => {
     const getProposalFromContract = () =>
       contract.getProposal({ proposalAddress, maxLt });
+    const enrichWithOneWalletOneVoteFallback = async (
+      proposal?: Proposal | null
+    ) => {
+      if (!proposal) return proposal;
+      const isOneWalletOneVote = getIsOneWalletOneVote(
+        proposal.metadata?.votingPowerStrategies
+      );
+      if (!isOneWalletOneVote || _.size(proposal.votes)) return proposal;
+
+      const fallback = await contract.getOneWalletOneVoteFallback(
+        proposalAddress,
+        proposal.metadata
+      );
+      if (!fallback?.votes.length) return proposal;
+
+      return {
+        ...proposal,
+        votes: fallback.votes,
+        proposalResult: fallback.proposalResult,
+      } as Proposal;
+    };
+    const shouldForceContractRefresh = (proposal?: Proposal | null) => {
+      if (!proposal) return false;
+      const isOneWalletOneVote = getIsOneWalletOneVote(
+        proposal.metadata?.votingPowerStrategies
+      );
+      return isOneWalletOneVote && !_.size(proposal.votes);
+    };
 
     const isMetadataUpToDateInServer = await getIsServerUpToDate(
       getProposalUpdateMillis(proposalAddress)
@@ -431,6 +459,13 @@ const useGetProposalWithFallback = (proposalAddress: string) => {
 
     try {
       proposal = await api.getProposal(proposalAddress!, signal);
+      if (shouldForceContractRefresh(proposal)) {
+        const fromContract = await getProposalFromContract();
+        if (fromContract && _.size(fromContract.votes)) {
+          proposal = fromContract;
+        }
+      }
+      proposal = await enrichWithOneWalletOneVoteFallback(proposal);
     } catch (error) {
       analytics.getProposalFromServerFailed(
         proposalAddress,
@@ -448,6 +483,7 @@ const useGetProposalWithFallback = (proposalAddress: string) => {
         );
       }
     }
+    proposal = await enrichWithOneWalletOneVoteFallback(proposal);
     // failed to fetch proposal from server and contract
 
     if (!proposal) {

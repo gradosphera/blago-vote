@@ -1,31 +1,32 @@
-import { styled, Typography } from "@mui/material";
+import { Chip, styled, Typography } from "@mui/material";
 import { useGetProposalSymbol, useProposalResults } from "hooks/hooks";
 import { useDaoPageTranslations } from "i18n/hooks/useDaoPageTranslations";
-import { useProposalQuery } from "query/getters";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 import { StyledAlert, StyledProposalPercent, StyledProposalResult, StyledProposalResultContent, StyledProposalResultProgress, StyledResultName, StyledTonAmount } from "../styles";
+
+const QUORUM_PERCENT = 66;
 
 export const Results = ({
   proposalAddress,
 }: {
   proposalAddress: string;
 }) => {
-  const { data: proposal } = useProposalQuery(proposalAddress);
-
-  const totalWeight = proposal?.proposalResult.totalWeights;
   const translations = useDaoPageTranslations();
   const results = useProposalResults(proposalAddress);
-
-  if (Number(totalWeight) === 0) {
-    return (
-      <StyledAlert severity="warning">
-        <Typography>{translations.endedAndDidntPassedQuorum}</Typography>
-      </StyledAlert>
-    );
-  }
+  const winnerPercent = Math.max(...results.map((it) => it.percent), 0);
+  const isQuorumPassed = winnerPercent >= QUORUM_PERCENT;
 
   return (
     <StyledResults gap={10}>
+      <StyledQuorumChip
+        label={isQuorumPassed ? "Кворум 2/3 пройден" : "Кворум 2/3 не пройден"}
+        color={isQuorumPassed ? "success" : "warning"}
+      />
+      {!isQuorumPassed && (
+        <StyledAlert severity="warning">
+          <Typography>{translations.endedAndDidntPassedQuorum}</Typography>
+        </StyledAlert>
+      )}
       {results.map((result) => {
         return (
           <Result
@@ -67,4 +68,9 @@ const Result = ({
 
 const StyledResults = styled(StyledFlexColumn)({
   width: "100%",
+});
+
+const StyledQuorumChip = styled(Chip)({
+  width: "fit-content",
+  fontWeight: 600,
 });
