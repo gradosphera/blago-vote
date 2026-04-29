@@ -65,7 +65,7 @@ export const parseVotes = (
   let votes: Vote[] = [];
 
   if (_.isArray(rawVotes)) {
-    votes = _.map(rawVotes, (item: any) => {
+    votes = rawVotes.map((item: any) => {
       const address = item?.address || item?.voter || item?.wallet || "";
       const _votingPower = getVotingPowerByAddress(address, votingPower);
       return {
@@ -77,7 +77,8 @@ export const parseVotes = (
       };
     });
   } else {
-    votes = _.map(rawVotes, (v: RawVote & Record<string, any>, key: string) => {
+    votes = Object.entries(rawVotes).map(([key, value]) => {
+      const v = value as RawVote & Record<string, any>;
       const address = v?.address || v?.voter || v?.wallet || key;
       const _votingPower = getVotingPowerByAddress(address, votingPower);
 
