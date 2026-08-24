@@ -305,6 +305,46 @@ export const parseLanguage = (json?: string, lang: string = "en") => {
   }
 };
 
+const PROPOSAL_TEMPLATE_MARKER_PREFIX = "<!--proposal-template:";
+
+export interface ExtractedProposalTemplate {
+  templateId: string;
+  templateParams: Record<string, string>;
+}
+
+export const extractProposalTemplate = (
+  text?: string,
+): ExtractedProposalTemplate | undefined => {
+  if (!text) return undefined;
+  const start = text.indexOf(PROPOSAL_TEMPLATE_MARKER_PREFIX);
+  if (start < 0) return undefined;
+  const end = text.indexOf("-->", start);
+  if (end < 0) return undefined;
+  const json = text
+    .slice(start + PROPOSAL_TEMPLATE_MARKER_PREFIX.length, end)
+    .trim();
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed && typeof parsed.templateId === "string") {
+      return {
+        templateId: parsed.templateId,
+        templateParams: parsed.templateParams || {},
+      };
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const stripProposalTemplateMarker = (text?: string): string => {
+  if (!text) return "";
+  return text
+    .replace(/<!--proposal-template:[\s\S]*?-->/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
 export const isDaoWhitelisted = (address?: string) => {
   if (!address) return false;
   if (isDaoBlacklisted(address)) return false;

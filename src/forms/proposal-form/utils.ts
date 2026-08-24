@@ -6,7 +6,7 @@ import {
   VotingPowerStrategyType,
 } from "ton-vote-contracts-sdk";
 import { Dao, ProposalForm, ProposalInputArgs } from "types";
-import { fromUtcMoment, isZeroAddress, utcMoment } from "utils";
+import { fromUtcMoment, isZeroAddress, utcMoment, stripProposalTemplateMarker } from "utils";
 
 const initialChoices = ["За", "Против", "Воздержаться"];
 const BLAGO_JETTON_ADDRESS = "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll";
@@ -30,7 +30,7 @@ export const getInitialValues = (
       ? fromUtcMoment(formData.proposalSnapshotTime).valueOf()
       : proposalSnapshotTime,
     votingChoices: formData.votingChoices || initialChoices,
-    description_en: formData.description_en,
+    description_en: stripProposalTemplateMarker(formData.description_en),
     description_ru: formData.description_ru,
     votingSystemType: formData.votingSystemType || 0,
     title_en: formData.title_en,
@@ -159,7 +159,16 @@ export const prepareMetadata = (
       choices: formValues.votingChoices,
     },
     title: JSON.stringify({ en: formValues.title_en }),
-    description: JSON.stringify({ en: formValues.description_en }),
+    description: JSON.stringify({
+      en:
+        stripProposalTemplateMarker(formValues.description_en) +
+        (formValues.templateId && formValues.templateParams
+          ? `\n\n<!--proposal-template:${JSON.stringify({
+              templateId: formValues.templateId,
+              templateParams: formValues.templateParams,
+            })}-->`
+          : ""),
+    }),
     votingPowerStrategies: formValues.votingPowerStrategies,
     quorum: "",
     hide: formValues.hide,

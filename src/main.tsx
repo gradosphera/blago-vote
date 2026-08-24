@@ -29,6 +29,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
     <TonConnectUIProvider
       manifestUrl={manifestUrl}
+      analytics={{ mode: "off" }}
       uiPreferences={{
         theme: defaultTheme
       }}

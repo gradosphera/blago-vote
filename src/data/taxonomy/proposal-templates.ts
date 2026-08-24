@@ -1075,6 +1075,47 @@ export const TEMPLATES: ProposalTemplate[] = [
       },
     ],
   },
+  {
+    id: "multisig-mint",
+    category: "Мультикошелек",
+    type: "Выпуск токенов",
+    titleTemplate:
+      "Выпуск {amount} жетонов контракта {jettonMinterAddress} на адрес {toAddress}",
+    descriptionTemplate: `Предлагается выпустить (сминтить) {amount} жетонов контракта {jettonMinterAddress} на адрес {toAddress} через мультикошелек {multisigAddress}.
+
+После завершения голосования с положительным результатом решение можно применить в мультикошельке одной транзакцией.`,
+    tags: ["мультикошелек", "минт", "жетоны", "выпуск"],
+    parameters: [
+      {
+        name: "jettonMinterAddress",
+        label: "Адрес жетона (minter)",
+        type: "text",
+        required: true,
+        placeholder: "EQ...",
+      },
+      {
+        name: "amount",
+        label: "Количество жетонов (в единицах)",
+        type: "text",
+        required: true,
+        placeholder: "1000",
+      },
+      {
+        name: "toAddress",
+        label: "Адрес получателя",
+        type: "text",
+        required: true,
+        placeholder: "EQ...",
+      },
+      {
+        name: "multisigAddress",
+        label: "Адрес мультикошелька (администратор жетона)",
+        type: "text",
+        required: true,
+        placeholder: "EQ...",
+      },
+    ],
+  },
 ];
 
 export const CATEGORIES = Array.from(

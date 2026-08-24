@@ -9,8 +9,9 @@ import { Box } from "@mui/system";
 import { AppTooltip, Button, Github, Menu } from "components";
 import { StyledFlexRow, StyledGrid } from "styles";
 import { useState } from "react";
-import { useAppNavigation } from "router/navigation";
+import { useAppNavigation, appNavigation } from "router/navigation";
 import { useAppSettings } from "hooks/hooks";
+import { Link, useLocation } from "react-router-dom";
 import { APP_NAME, LANGUAGES } from "config";
 import { useTranslation } from "react-i18next";
 import { BsGlobeAmericas } from "react-icons/bs";
@@ -31,7 +32,8 @@ export function Navbar() {
           <img src={LogoImg} alt="" />
           <Typography style={{ marginTop: 5 }}>{APP_NAME}</Typography>
         </StyledLogo>
-        <StyledFlexRow style={{ width: "fit-content" }}>
+        <StyledFlexRow style={{ width: "fit-content", gap: 8 }}>
+          <MultisigTab />
           <ConnectButton />
           <ThemeToggle />
         </StyledFlexRow>
@@ -39,6 +41,37 @@ export function Navbar() {
     </StyledContainer>
   );
 }
+
+const MultisigTab = () => {
+  const location = useLocation();
+  const active = location.pathname.startsWith("/multisig") ? 1 : 0;
+  return (
+    <StyledMultisigTab to={appNavigation.multisigPage.root()} $active={active}>
+      Мультикошелек
+    </StyledMultisigTab>
+  );
+};
+
+const StyledMultisigTab = styled(Link, {
+  shouldForwardProp: (prop) => prop !== "$active",
+})<{ $active: number }>(({ theme, $active }) => ({
+  textDecoration: "none",
+  height: "unset",
+  padding: "10px 16px",
+  fontSize: 14,
+  fontWeight: $active ? 700 : 500,
+  color: $active
+    ? theme.palette.primary.main
+    : theme.palette.text.secondary,
+  borderBottom: $active
+    ? `2px solid ${theme.palette.primary.main}`
+    : "2px solid transparent",
+  borderRadius: 0,
+  [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
+    fontSize: 12,
+    padding: "8px 10px",
+  },
+}));
 
 const ThemeToggle = () => {
   const { toggleTheme, isDarkMode } = useAppSettings();

@@ -15,6 +15,18 @@ export const appNavigation = {
     edit: (proposalId: string) =>
       routes.editProposal.replace(":proposalId", proposalId),
   },
+  multisigPage: {
+    root: () => routes.multisig,
+    address: (address: string) => routes.multisigAddress.replace(":address", address),
+    newOrder: (address: string) =>
+      routes.multisigNewOrder.replace(":address", address),
+    order: (address: string, orderId: string | bigint) =>
+      routes.multisigOrder
+        .replace(":address", address)
+        .replace(":orderId", orderId.toString()),
+    create: () => routes.multisigCreate,
+    import: () => routes.multisigImport,
+  },
 };
 
 export const useAppNavigation = () => {
@@ -39,6 +51,17 @@ export const useAppNavigation = () => {
     },
     createSpace: {
       root: () => navigate(routes.createSpace),
+    },
+    multisigPage: {
+      root: () => navigate(appNavigation.multisigPage.root()),
+      address: (address: string) =>
+        navigate(appNavigation.multisigPage.address(address)),
+      newOrder: (address: string) =>
+        navigate(appNavigation.multisigPage.newOrder(address)),
+      order: (address: string, orderId: string | bigint) =>
+        navigate(appNavigation.multisigPage.order(address, orderId)),
+      create: () => navigate(appNavigation.multisigPage.create()),
+      import: () => navigate(appNavigation.multisigPage.import()),
     },
   };
 };

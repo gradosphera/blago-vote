@@ -1,8 +1,13 @@
 import { Box, Typography } from "@mui/material";
 import { styled } from "@mui/material";
 import { StyledFlexColumn, StyledFlexRow, StyledSkeletonLoader } from "styles";
-import { useAppParams, useMobile, useProposalStatus } from "hooks/hooks";
-import { Link } from "react-router-dom";
+import {
+  useAppParams,
+  useMobile,
+  useProposalStatus,
+  useProposalResults,
+} from "hooks/hooks";
+import { Link, useNavigate } from "react-router-dom";
 import { appNavigation } from "router/navigation";
 import AnimateHeight from "react-animate-height";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -20,7 +25,8 @@ import {
   HiddenProposal,
   Loader,
 } from "components";
-import { makeElipsisAddress, parseLanguage } from "utils";
+import { makeElipsisAddress, parseLanguage, extractProposalTemplate } from "utils";
+import { ProposalStatus as ProposalStatusEnum } from "types";
 import { useProposalPageTranslations } from "i18n/hooks/useProposalPageTranslations";
 import { MOBILE_WIDTH } from "consts";
 import { useDaoQuery, useProposalQuery } from "query/getters";
@@ -49,9 +55,10 @@ function DesktopAbout() {
       </StyledProposalOwner>
       <ProposalOwnerAddress />
       <Description />
+      <ProposalApplyButton />
     </StyledFlexColumn>
   );
-}
+};
 
 function MobileAbout() {
   return (
@@ -68,6 +75,7 @@ function MobileAbout() {
       </StyledProposalOwner>
       <ProposalOwnerAddress />
       <Description />
+      <ProposalApplyButton />
     </StyledFlexColumn>
   );
 }
@@ -204,6 +212,68 @@ const ProposalStatus = () => {
 
   return <Status status={proposalStatusText} />;
 };
+
+const QUORUM_PERCENT = 66;
+
+const ProposalApplyButton = () => {
+  const { proposalAddress } = useAppParams();
+  const navigate = useNavigate();
+  const { proposalStatus } = useProposalStatus(proposalAddress);
+  const { data } = useProposalQuery(proposalAddress);
+  const results = useProposalResults(proposalAddress);
+
+  if (
+    proposalStatus !== ProposalStatusEnum.CLOSED ||
+    !data?.metadata?.description
+  ) {
+    return null;
+  }
+
+  const template = extractProposalTemplate(
+    parseLanguage(data.metadata.description),
+  );
+  if (!template || template.templateId !== "multisig-mint") return null;
+
+  const winnerPercent = results.length
+    ? Math.max(...results.map((r) => r.percent))
+    : 0;
+  const passed =
+    results.length > 0 &&
+    results[0].percent === winnerPercent &&
+    winnerPercent >= QUORUM_PERCENT;
+  if (!passed) return null;
+
+  const { multisigAddress, jettonMinterAddress, amount, toAddress } =
+    template.templateParams;
+  if (!multisigAddress) return null;
+
+  const onClick = () =>
+    navigate(appNavigation.multisigPage.newOrder(multisigAddress), {
+      state: {
+        orderType: "Минт жетонов",
+        values: {
+          jettonMinterAddress: (jettonMinterAddress || "").trim(),
+          amount: (amount || "").trim(),
+          toAddress: (toAddress || "").trim(),
+        },
+      },
+    });
+
+  return (
+    <StyledApplyButton onClick={onClick}>
+      Применить в мультикошельке
+    </StyledApplyButton>
+  );
+};
+
+const StyledApplyButton = styled(Button)(({ theme }) => ({
+  height: 44,
+  minWidth: 220,
+  "*": {
+    fontSize: 15,
+    fontWeight: 600,
+  },
+}));
 
 const StyledShareButton = styled(ShareButton)({
   marginLeft: "auto",

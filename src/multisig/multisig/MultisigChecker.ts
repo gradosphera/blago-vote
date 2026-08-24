@@ -1,0 +1,725 @@
+import {
+  AddressInfo,
+  addressToString,
+  assert,
+  equalsAddressLists,
+  getAddressFormat,
+} from "../utils/utils";
+import { Address, Cell, Dictionary, fromNano } from "@ton/core";
+import { endParse, Multisig, parseMultisigData } from "./Multisig";
+import {
+  MyNetworkProvider,
+  parseCellFromStateString,
+  sendToIndex,
+} from "../utils/MyNetworkProvider";
+import { Op } from "./Constants";
+import { Order } from "./Order";
+import { checkMultisigOrder, MultisigOrderInfo } from "./MultisigOrderChecker";
+
+const TRACE_BATCH_SIZE = 50;
+
+// Сколько последних заявок обогащать деталями (get-методы, трассы выполнения).
+// Остальные заявки в списке показываются без деталей, чтобы не создавать лишние
+// запросы к API и не ловить rate limit.
+const MAX_ORDER_DETAILS = 5;
+
+interface ToncenterMessage {
+  decoded_opcode?: string | null;
+  opcode?: string | number | null;
+  bounced?: boolean | null;
+}
+
+interface ToncenterSkippedComputePhase {
+  skipped: true;
+  reason: string;
+}
+
+interface ToncenterVmComputePhase {
+  skipped: false;
+  success: boolean;
+  exit_code: number;
+}
+
+type ToncenterComputePhase =
+  | ToncenterSkippedComputePhase
+  | ToncenterVmComputePhase;
+
+interface ToncenterActionPhase {
+  success: boolean;
+}
+
+interface ToncenterTransactionDescription {
+  type: string;
+  bounce?: unknown | null;
+  compute_ph?: ToncenterComputePhase | null;
+  action?: ToncenterActionPhase | null;
+}
+
+interface ToncenterTransaction {
+  description?: ToncenterTransactionDescription | null;
+  in_msg?: ToncenterMessage | null;
+}
+
+interface ToncenterTrace {
+  is_incomplete?: boolean;
+  transactions?: Record<string, ToncenterTransaction> | null;
+}
+
+interface ToncenterTracesResponse {
+  traces?: ToncenterTrace[] | null;
+}
+
+const isSuccessfulToncenterTransaction = (
+  transaction: ToncenterTransaction,
+): boolean => {
+  const description = transaction.description;
+
+  switch (description?.type) {
+    case "ord": {
+      if (description.bounce != null) return false;
+
+      const computePhase = description.compute_ph;
+      if (computePhase?.skipped === true && computePhase.reason !== "no_state")
+        return false;
+      if (
+        computePhase?.skipped === false &&
+        (!computePhase.success ||
+          (computePhase.exit_code !== 0 && computePhase.exit_code !== 1))
+      ) {
+        return false;
+      }
+      if (description.action && !description.action.success) return false;
+      return true;
+    }
+    case "tick_tock": {
+      const computePhase = description.compute_ph;
+      if (computePhase?.skipped === true && computePhase.reason !== "no_state")
+        return false;
+      if (
+        computePhase?.skipped === false &&
+        (!computePhase.success ||
+          (computePhase.exit_code !== 0 && computePhase.exit_code !== 1))
+      ) {
+        return false;
+      }
+      if (description.action && !description.action.success) return false;
+      return true;
+    }
+    default:
+      return true;
+  }
+};
+
+const isExcessMessage = (message?: ToncenterMessage | null): boolean => {
+  return (
+    message?.decoded_opcode === "excess" ||
+    message?.opcode === "0xd53276db" ||
+    message?.opcode === 0xd53276db
+  );
+};
+
+const isFailedToncenterTransaction = (
+  transaction: ToncenterTransaction,
+): boolean => {
+  if (isSuccessfulToncenterTransaction(transaction)) return false;
+
+  const inMsg = transaction.in_msg;
+  return !isExcessMessage(inMsg) && !inMsg?.bounced;
+};
+
+const parseNewOrderInitStateBody = (cell: Cell) => {
+  const slice = cell.beginParse();
+  const multisigAddress = slice.loadAddress();
+  const orderId = slice.loadUintBig(256);
+  endParse(slice);
+  return {
+    multisigAddress,
+    orderId,
+  };
+};
+
+const parseNewOrderInitState = (cell: Cell) => {
+  const slice = cell.beginParse();
+  if (slice.loadUint(2) !== 0) throw new Error("invalid init state prefix");
+  const code = slice.loadMaybeRef()!;
+  const body = slice.loadMaybeRef()!;
+  if (slice.loadBoolean())
+    throw new Error("invalid init state empty libraries");
+  endParse(slice);
+  return {
+    code,
+    body: parseNewOrderInitStateBody(body),
+  };
+};
+
+/**
+ * @param outMsg - out msg from toncenter v3
+ */
+const parseNewOrderOutMsg = (outMsg: any) => {
+  const orderAddress = Address.parse(outMsg.destination);
+  const initState = Cell.fromBase64(outMsg.init_state.body);
+  const parsed = parseNewOrderInitState(initState);
+
+  try {
+    const body = Cell.fromBase64(outMsg.message_content.body).beginParse();
+    assert(body.loadUint(32) === Op.order.init, "invalid op");
+    const queryId = body.loadUint(64);
+    const threshold = body.loadUint(8);
+    const signers = body
+      .loadRef()
+      .beginParse()
+      .loadDictDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Address());
+    const expiredAt = body.loadUint(48);
+    const order = body
+      .loadRef()
+      .beginParse()
+      .loadDictDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
+    const isSigner = body.loadUint(1);
+    let signerIndex = undefined;
+    if (isSigner) {
+      signerIndex = body.loadUint(8);
+    }
+
+    endParse(body);
+  } catch (e) {
+    // Тело сообщения в не-BOC формате (например, raw_body от tonapi) или
+    // не парсится — для списка заявок достаточно адреса заявки и её номера
+    // из init state, поэтому ошибка не фатальна.
+    console.warn("Failed to parse new order out message body:", e);
+  }
+
+  return {
+    orderAddress,
+    orderId: parsed.body.orderId,
+  };
+};
+
+export interface LastOrder {
+  utime: number;
+  transactionHash: string;
+  type: "new" | "execute" | "pending" | "executed";
+  executionStatus?: "checking" | "success" | "failed";
+  errorMessage?: string;
+  order?: {
+    address: AddressInfo;
+    id: bigint;
+  };
+  orderInfo?: MultisigOrderInfo;
+  expiredAt?: number;
+  summary?: MultisigOrderInfo["summary"];
+  isParamsUpdate?: boolean;
+}
+
+// Сумма отправки GRAM для исполненной заявки берётся из исходящих сообщений
+// транзакции исполнения: мультикошелек при исполнении отправляет переводы
+// из действий заявки, и value первого исходящего сообщения — это сумма GRAM.
+const parseExecuteOutSummary = (
+  outMsgs: any[],
+): MultisigOrderInfo["summary"] | undefined => {
+  if (!Array.isArray(outMsgs)) return undefined;
+  let gram = "";
+  for (const msg of outMsgs) {
+    if (gram) break;
+    const value = msg?.value;
+    if (value == null) continue;
+    try {
+      const nano = BigInt(String(value));
+      if (nano <= 0n) continue;
+      gram = `${fromNano(nano)} GRAM`;
+    } catch {
+      continue;
+    }
+  }
+  return gram ? { gram } : undefined;
+};
+
+// Заявка «обновление параметров мультикошелька» не отправляет GRAM: для неё
+// в столбце с суммой вместо значения из исходящих сообщений транзакции
+// исполнения показывается подпись «Обновление». Тип определяем по набору
+// действий из тела сообщения new_order.
+const hasParamsUpdateAction = (actions: Dictionary<number, Cell>): boolean => {
+  for (const actionCell of actions.values()) {
+    try {
+      const slice = actionCell.beginParse();
+      if (slice.remainingBits >= 32 && slice.loadUint(32) === 0x1d0cfbd3) {
+        return true;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  return false;
+};
+
+export const isLastOrderExpired = (lastOrder: LastOrder): boolean => {
+  if (lastOrder.executionStatus !== undefined) return false;
+  const expiresAt =
+    lastOrder.expiredAt ??
+    (lastOrder.orderInfo ? lastOrder.orderInfo.expiresAt.getTime() : undefined);
+  return expiresAt !== undefined && new Date().getTime() > expiresAt;
+};
+
+export interface MultisigInfo {
+  address: AddressInfo;
+  multisigContract: Multisig;
+  provider: MyNetworkProvider;
+  signers: AddressInfo[];
+  proposers: AddressInfo[];
+  threshold: number;
+  allowArbitraryOrderSeqno: boolean;
+  nextOderSeqno: bigint;
+  tonBalance: bigint;
+  lastOrders: LastOrder[];
+  stateInitMatches: boolean;
+}
+
+export const checkMultisig = async (
+  multisigAddress: AddressInfo,
+  multisigCode: Cell,
+  multisigOrderCode: Cell,
+  isTestnet: boolean,
+  lastOrdersMode: "none" | "history" | "aggregate",
+  needAdditionalGetMethodChecks: boolean,
+): Promise<MultisigInfo> => {
+  // Account State and Data
+
+  const result = await sendToIndex(
+    "account",
+    { address: addressToString(multisigAddress) },
+    isTestnet,
+  );
+  assert(
+    result.status === "active",
+    "Контракт не активен. Если вы только что создали мультикошелек, он должен появиться в течение ~30 секунд.",
+  );
+
+  assert(
+    parseCellFromStateString(result.code, "code").equals(multisigCode),
+    "Код контракта НЕ совпадает с кодом мультикошелька из этого репозитория",
+  );
+
+  const tonBalance = result.balance;
+
+  const data = parseCellFromStateString(result.data, "data");
+  const parsedData = parseMultisigData(data);
+
+  if (parsedData.allowArbitraryOrderSeqno) {
+    assert(
+      parsedData.nextOderSeqno === BigInt(0),
+      "Некорректный nextOrderSeqno для allowArbitraryOrderSeqno",
+    );
+  }
+
+  const signers = parsedData.signers;
+  const proposers = parsedData.proposers;
+
+  assert(
+    signers.length === parsedData.signersCount,
+    "Некорректное количество подписантов",
+  );
+  assert(parsedData.threshold > 0, "Порог <= 0");
+  assert(parsedData.threshold <= parsedData.signersCount, "Некорректный порог");
+
+  const signersFormatted = [];
+  for (const signer of signers) {
+    signersFormatted.push(await getAddressFormat(signer, isTestnet));
+  }
+  const proposersFormatted = [];
+  for (const proposer of proposers) {
+    proposersFormatted.push(await getAddressFormat(proposer, isTestnet));
+  }
+
+  // Get-methods
+
+  const multisigContract = Multisig.createFromAddress(multisigAddress.address);
+
+  const provider = new MyNetworkProvider(multisigAddress.address, isTestnet);
+
+  if (needAdditionalGetMethodChecks) {
+    const getData = await multisigContract.getMultisigData(provider);
+
+    if (parsedData.allowArbitraryOrderSeqno) {
+      assert(
+        getData.nextOrderSeqno === BigInt(-1),
+        "nextOderSeqno doesn't match",
+      );
+    } else {
+      assert(
+        getData.nextOrderSeqno === parsedData.nextOderSeqno,
+        "nextOderSeqno doesn't match",
+      );
+    }
+    assert(
+      getData.threshold === BigInt(parsedData.threshold),
+      "threshold doesn't match",
+    );
+    assert(
+      equalsAddressLists(getData.signers, parsedData.signers),
+      "invalid signers",
+    );
+    assert(
+      equalsAddressLists(getData.proposers, parsedData.proposers),
+      "invalid proposers",
+    );
+  }
+
+  // State Init
+
+  const multisigAddress2 = Multisig.createFromConfig(
+    {
+      threshold: parsedData.threshold,
+      signers: parsedData.signers,
+      proposers: parsedData.proposers,
+      allowArbitrarySeqno: parsedData.allowArbitraryOrderSeqno,
+    },
+    multisigCode,
+  );
+
+  const stateInitMatches = multisigAddress2.address.equals(
+    multisigAddress.address,
+  );
+
+  const multisigInfo: MultisigInfo = {
+    address: multisigAddress,
+    multisigContract,
+    provider,
+    signers: signersFormatted,
+    proposers: proposersFormatted,
+    threshold: parsedData.threshold,
+    allowArbitraryOrderSeqno: parsedData.allowArbitraryOrderSeqno,
+    nextOderSeqno: parsedData.nextOderSeqno,
+    tonBalance,
+    lastOrders: [],
+    stateInitMatches,
+  };
+
+  // Last Orders
+
+  let lastOrders: LastOrder[] = [];
+
+  if (lastOrdersMode !== "none") {
+    try {
+      const result = await sendToIndex(
+        "transactions",
+        { account: addressToString(multisigAddress), limit: 256 },
+        isTestnet,
+      );
+
+    for (const tx of result.transactions) {
+      if (!tx.in_msg.message_content) continue;
+      if (!tx.in_msg.message_content.body) continue;
+
+      let inBody: Cell;
+      let inBodySlice: any;
+      try {
+        inBody = Cell.fromBase64(tx.in_msg.message_content.body);
+        inBodySlice = inBody.beginParse();
+      } catch (e) {
+        // Тело входящего сообщения — не BOC (текстовый комментарий, пустой
+        // комментарий или отличный формат). Пропускаем такую транзакцию.
+        continue;
+      }
+      if (inBodySlice.remainingBits < 32) {
+        continue;
+      }
+      const op = inBodySlice.loadUint(32);
+
+      if (op === 0x75097f5d) {
+        // execute
+        try {
+          const queryId = inBodySlice.loadUintBig(64);
+          const orderId = inBodySlice.loadUintBig(256);
+          const orderAddress = Address.parse(tx.in_msg.source);
+
+          const multisigOrderToCheck = Order.createFromConfig(
+            {
+              multisig: multisigAddress.address,
+              orderSeqno: orderId,
+            },
+            multisigOrderCode,
+          );
+
+          if (!orderAddress.equals(multisigOrderToCheck.address)) {
+            throw new Error("fake order");
+          }
+
+          lastOrders.push({
+            utime: tx.now,
+            transactionHash: tx.hash,
+            type: "execute",
+            summary: parseExecuteOutSummary(tx.out_msgs),
+            order: {
+              address: {
+                address: orderAddress,
+                isBounceable: true,
+                isTestOnly: isTestnet,
+              },
+              id: orderId,
+            },
+          });
+        } catch (e: any) {
+          lastOrders.push({
+            utime: tx.now,
+            transactionHash: tx.hash,
+            type: "execute",
+            errorMessage: e.message,
+          });
+        }
+      } else if (op === 0xf718510f) {
+        // new_order
+        try {
+          if (tx.out_msgs.length !== 1) throw new Error("invalid out messages");
+          const outMsg = tx.out_msgs[0];
+          const { orderAddress, orderId } = parseNewOrderOutMsg(outMsg);
+
+          const multisigOrderToCheck = Order.createFromConfig(
+            {
+              multisig: multisigAddress.address,
+              orderSeqno: orderId,
+            },
+            multisigOrderCode,
+          );
+
+          if (!orderAddress.equals(multisigOrderToCheck.address)) {
+            throw new Error("fake order");
+          }
+
+          const queryId = inBodySlice.loadUint(64);
+          const _orderId = inBodySlice.loadUint(256);
+          const isSigner = inBodySlice.loadUint(1);
+          const index = inBodySlice.loadUint(8);
+          const expiredAt = inBodySlice.loadUint(48);
+          const order = inBodySlice
+            .loadRef()
+            .beginParse()
+            .loadDictDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
+
+          endParse(inBodySlice);
+
+          lastOrders.push({
+            utime: tx.now,
+            transactionHash: tx.hash,
+            type: "new",
+            expiredAt: Number(expiredAt) * 1000,
+            isParamsUpdate: hasParamsUpdateAction(order),
+            order: {
+              address: {
+                address: orderAddress,
+                isBounceable: true,
+                isTestOnly: isTestnet,
+              },
+              id: orderId,
+            },
+          });
+        } catch (e: any) {
+          lastOrders.push({
+            utime: tx.now,
+            transactionHash: tx.hash,
+            type: "new",
+            errorMessage: "Недействительная новая заявка: " + e.message,
+          });
+        }
+      }
+    }
+
+    if (lastOrdersMode === "aggregate") {
+      const lastOrdersMap: { [key: string]: LastOrder } = {};
+      for (let lastOrder of lastOrders) {
+        if (lastOrder.errorMessage) continue;
+
+        const orderId = lastOrder.order!.id.toString();
+
+        if (!lastOrdersMap[orderId]) {
+          lastOrdersMap[orderId] = {
+            utime: lastOrder.utime,
+            transactionHash: lastOrder.transactionHash,
+            type: lastOrder.type === "new" ? "pending" : "executed",
+            order: lastOrder.order,
+            expiredAt: lastOrder.expiredAt,
+            summary: lastOrder.summary,
+            isParamsUpdate: lastOrder.isParamsUpdate,
+          };
+        } else {
+          const existing = lastOrdersMap[orderId];
+          if (lastOrder.type === "new") {
+            if (existing.type !== "executed") {
+              existing.expiredAt = lastOrder.expiredAt;
+            }
+            if (lastOrder.isParamsUpdate) {
+              existing.isParamsUpdate = true;
+            }
+          } else if (
+            existing.type !== "executed" &&
+            lastOrder.type === "execute"
+          ) {
+            existing.utime = lastOrder.utime;
+            existing.type = "executed";
+            existing.transactionHash = lastOrder.transactionHash;
+            existing.expiredAt = undefined;
+            existing.summary = lastOrder.summary;
+          }
+        }
+      }
+
+      // Заявки обновления параметров не переводят GRAM: в столбце с суммой
+      // вместо значения из исходящих сообщений транзакции исполнения
+      // показываем подпись «Обновление».
+      for (const lastOrder of Object.values(lastOrdersMap)) {
+        if (lastOrder.type === "executed" && lastOrder.isParamsUpdate) {
+          lastOrder.summary = { gram: "Обновление" };
+        }
+      }
+
+      lastOrders = Object.values(lastOrdersMap).sort((a, b) => {
+        if (a.type === b.type) {
+          return b.utime - a.utime;
+        } else {
+          if (a.type === "pending") return -1;
+          return 1;
+        }
+      });
+
+      // Детали (get-методы заявок и трассы исполнения) запрашиваем только для
+      // нескольких последних заявок, чтобы не создавать десятки запросов
+      // каждые несколько секунд и не ловить rate limit. Остальные заявки
+      // показываются в списке без деталей.
+      const detailOrders = lastOrders.slice(0, MAX_ORDER_DETAILS);
+
+      const executedOrders = detailOrders.filter(
+        (lastOrder) => lastOrder.type === "executed",
+      );
+      const transactionHashes = [
+        ...new Set(
+          executedOrders.map((lastOrder) => lastOrder.transactionHash),
+        ),
+      ];
+      const resolvedHashes = new Set<string>();
+      const failedHashes = new Set<string>();
+
+      const getTraceBatch = async (batch: string[]): Promise<void> => {
+        const result: ToncenterTracesResponse = await sendToIndex(
+          "traces",
+          { tx_hash: batch, limit: batch.length },
+          isTestnet,
+        );
+
+        for (const trace of result.traces || []) {
+          if (trace.is_incomplete) continue;
+
+          const transactions = trace.transactions || {};
+          const failed = Object.values(transactions).some(
+            isFailedToncenterTransaction,
+          );
+
+          for (const transactionHash of batch) {
+            if (transactions[transactionHash]) {
+              resolvedHashes.add(transactionHash);
+              if (failed) failedHashes.add(transactionHash);
+            }
+          }
+        }
+      };
+
+      const getTraceBatchPromises: Promise<void>[] = [];
+      for (
+        let offset = 0;
+        offset < transactionHashes.length;
+        offset += TRACE_BATCH_SIZE
+      ) {
+        const batch = transactionHashes.slice(
+          offset,
+          offset + TRACE_BATCH_SIZE,
+        );
+        getTraceBatchPromises.push(getTraceBatch(batch));
+      }
+
+      const getOrderInfo = async (lastOrder: LastOrder) => {
+        if (lastOrder.type === "pending") {
+          try {
+            const orderInfo = await checkMultisigOrder(
+              lastOrder.order!.address,
+              multisigOrderCode,
+              multisigInfo,
+              isTestnet,
+              false,
+            );
+            lastOrder.orderInfo = orderInfo;
+            if (orderInfo.isExecuted) {
+              lastOrder.type = "executed";
+              lastOrder.expiredAt = undefined;
+            } else {
+              const isExpired =
+                new Date().getTime() > orderInfo.expiresAt.getTime();
+              if (isExpired) {
+                lastOrder.type = "executed";
+              } else if (
+                orderInfo.isMismatchSigners ||
+                orderInfo.isMismatchThreshold
+              ) {
+                lastOrder.type = "executed";
+                lastOrder.errorMessage =
+                  "Подписанты или порог мультикошелька не совпадают с заявкой";
+              }
+            }
+          } catch (e: any) {
+            // Только однозначный признак "Контракт не активен" означает, что
+            // заявка исполнена или просрочена (контракт заявки уничтожен).
+            // Переходные ошибки API (timeout, rate limit, HTTP-сбой) не должны
+            // менять статус заявки и перекидывать её между разделами списка.
+            if (String(e.message).startsWith("Контракт не активен")) {
+              lastOrder.type = "executed";
+              lastOrder.errorMessage = e.message;
+            } else {
+              console.error("Failed to check order info:", e);
+            }
+          }
+        }
+      };
+
+      const getOrderInfoPromises: Promise<void>[] = [];
+
+      for (const lastOrder of detailOrders) {
+        getOrderInfoPromises.push(getOrderInfo(lastOrder));
+      }
+
+      const traceBatchResults = await Promise.allSettled(getTraceBatchPromises);
+      for (const result of traceBatchResults) {
+        if (result.status === "rejected") {
+          console.error(
+            "Failed to load transaction trace batch",
+            result.reason,
+          );
+        }
+      }
+      await Promise.all(getOrderInfoPromises);
+
+      for (const lastOrder of executedOrders) {
+        if (!resolvedHashes.has(lastOrder.transactionHash)) {
+          lastOrder.executionStatus = "checking";
+        } else if (failedHashes.has(lastOrder.transactionHash)) {
+          lastOrder.executionStatus = "failed";
+          lastOrder.errorMessage = "Неудача";
+        } else {
+          lastOrder.executionStatus = "success";
+        }
+      }
+
+      lastOrders.sort((a, b) => {
+        const aOld = a.type === "executed" || isLastOrderExpired(a);
+        const bOld = b.type === "executed" || isLastOrderExpired(b);
+        if (aOld !== bOld) return aOld ? 1 : -1;
+        return b.utime - a.utime;
+      });
+      }
+    } catch (e) {
+      // Список заявок — некритичная часть страницы. Если его не удалось
+      // загрузить (rate limit, ошибка API), показываем мультикошелек без списка.
+      console.error("Failed to load last orders:", e);
+      lastOrders = [];
+    }
+  }
+
+  multisigInfo.lastOrders = lastOrders;
+
+  return multisigInfo;
+};

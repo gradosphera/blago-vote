@@ -34,6 +34,10 @@ function App() {
     [isDarkMode]
   );
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme.palette.mode);
+  }, [theme.palette.mode]);
+
   return (
     <>
       <Helmet>

@@ -12,7 +12,7 @@ interface Props {
   className?: string;
   onClick?: (e: any) => void;
   variant?: Variant;
-  id?: string
+  id?: string;
 }
 
 function Button({
@@ -64,8 +64,6 @@ const StyledContainer = styled("button")<{
   disabled: boolean;
   variant?: Variant;
 }>(({ theme, disabled, variant }) => {
-
-
   return {
     width: "fit-content",
     height: 44,
@@ -83,7 +81,10 @@ const StyledContainer = styled("button")<{
     padding: "0px 16px",
     transition: "0.3s all",
     "*, p": {
-      color: variant === "transparent" && theme.palette.mode === 'light' ? theme.palette.primary.main : "white",
+      color:
+        variant === "transparent" && theme.palette.mode === "light"
+          ? theme.palette.primary.main
+          : "white",
       fontSize: 16,
       fontWeight: 700,
       fontFamily: theme.typography.fontFamily,
@@ -101,7 +102,9 @@ const StyledContainer = styled("button")<{
             : "transparent",
         "*": {
           color:
-            variant === "transparent" || theme.palette.mode === 'dark' ? "white" : theme.palette.primary.main,
+            variant === "transparent" || theme.palette.mode === "dark"
+              ? "white"
+              : theme.palette.primary.main,
         },
       },
     },

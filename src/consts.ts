@@ -13,6 +13,13 @@ export const routes = {
   spaceAbout: "/:daoId/about",
   spaceSettings: "/:daoId/settings",
   createProposal: "/:daoId/create",
+  // multisig (Мультикошелек)
+  multisig: "/multisig",
+  multisigImport: "/multisig/import",
+  multisigCreate: "/multisig/new",
+  multisigAddress: "/multisig/:address",
+  multisigNewOrder: "/multisig/:address/new-order",
+  multisigOrder: "/multisig/:address/order/:orderId",
 };
 
 export const flatRoutes = _.map(routes, (value) => {
