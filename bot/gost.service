@@ -1,0 +1,15 @@
+[Unit]
+Description=Gost SOCKS5 egress proxy (edge node)
+After=network-online.target wg-quick@%i.service
+Wants=network-online.target
+# Place a working WireGuard interface (wg-quick@<name>) before this unit so the
+# SOCKS5 listener has a non-RU egress. On the edge node only.
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/gost -L socks5://0.0.0.0:9100
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

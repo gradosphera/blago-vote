@@ -17,8 +17,9 @@ export const config = {
   port: Number(env.PORT) || 0,
   debug: env.DEBUG === "true",
 
-  // SOCKS5 proxy (Tor 127.0.0.1:9050 or any other)
-  proxy: env.PROXY || "socks5://127.0.0.1:9150",
+  // SOCKS5 egress proxy for the bot (e.g. gost on the edge node, see bot/gost.service).
+  // Override via PROXY in .env.
+  proxy: env.PROXY || "socks5h://127.0.0.1:9100",
 
   siteUrl: "https://blago-vote.vercel.app",
   webappUrl: env.WEBAPP_URL || "https://t.me/gradosphera_vote_bot",
