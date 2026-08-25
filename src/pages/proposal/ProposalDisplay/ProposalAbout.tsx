@@ -24,6 +24,7 @@ import {
   OverflowWithTooltip,
   HiddenProposal,
   Loader,
+  AppTooltip,
 } from "components";
 import { makeElipsisAddress, parseLanguage, extractProposalTemplate } from "utils";
 import { ProposalStatus as ProposalStatusEnum } from "types";
@@ -31,6 +32,9 @@ import { useProposalPageTranslations } from "i18n/hooks/useProposalPageTranslati
 import { MOBILE_WIDTH } from "consts";
 import { useDaoQuery, useProposalQuery } from "query/getters";
 import { mock } from "mock/mock";
+import { Address } from "@ton/core";
+import { useMyAddress } from "multisig/useMyAddress";
+import { useMultisigInfo } from "multisig/useMultisigInfo";
 
 const MIN_DESCRIPTION_HEIGHT = 450;
 
@@ -218,36 +222,55 @@ const QUORUM_PERCENT = 66;
 const ProposalApplyButton = () => {
   const { proposalAddress } = useAppParams();
   const navigate = useNavigate();
+  const myAddress = useMyAddress();
   const { proposalStatus } = useProposalStatus(proposalAddress);
   const { data } = useProposalQuery(proposalAddress);
   const results = useProposalResults(proposalAddress);
 
-  if (
-    proposalStatus !== ProposalStatusEnum.CLOSED ||
-    !data?.metadata?.description
-  ) {
-    return null;
-  }
+  const template = data?.metadata?.description
+    ? extractProposalTemplate(parseLanguage(data.metadata.description))
+    : undefined;
+  const multisigAddress =
+    template?.templateId === "multisig-mint"
+      ? template.templateParams.multisigAddress
+      : undefined;
 
-  const template = extractProposalTemplate(
-    parseLanguage(data.metadata.description),
-  );
+  const { info, loading } = useMultisigInfo(multisigAddress);
+
+  if (proposalStatus !== ProposalStatusEnum.CLOSED) return null;
   if (!template || template.templateId !== "multisig-mint") return null;
 
   const winnerPercent = results.length
     ? Math.max(...results.map((r) => r.percent))
     : 0;
-  const passed =
-    results.length > 0 &&
-    results[0].percent === winnerPercent &&
-    winnerPercent >= QUORUM_PERCENT;
-  if (!passed) return null;
+  const quorumPassed = winnerPercent >= QUORUM_PERCENT;
+  if (!quorumPassed) return null;
 
-  const { multisigAddress, jettonMinterAddress, amount, toAddress } =
-    template.templateParams;
+  const { jettonMinterAddress, amount, toAddress } = template.templateParams;
   if (!multisigAddress) return null;
 
-  const onClick = () =>
+  const isEligible =
+    !loading &&
+    !!info &&
+    !!myAddress &&
+    (info.signers.some((s: { address: Address }) =>
+      s.address.equals(myAddress!),
+    ) ||
+      info.proposers.some((s: { address: Address }) =>
+        s.address.equals(myAddress!),
+      ));
+
+  let reason: string;
+  if (!myAddress) reason = "Подключите кошелёк, чтобы создать заявку";
+  else if (loading) reason = "Проверка прав в мультикошельке...";
+  else if (!info)
+    reason = "Указанный адрес мультикошелька недоступен или не является мультикошельком";
+  else
+    reason =
+      "Вы не являетесь подписантом или инициатором этого мультикошелька";
+
+  const onClick = () => {
+    if (!isEligible) return;
     navigate(appNavigation.multisigPage.newOrder(multisigAddress), {
       state: {
         orderType: "Минт жетонов",
@@ -258,22 +281,40 @@ const ProposalApplyButton = () => {
         },
       },
     });
+  };
 
-  return (
-    <StyledApplyButton onClick={onClick}>
+  const button = (
+    <StyledApplyButton
+      onClick={onClick}
+      grey={!isEligible}
+      disabled={!isEligible}
+    >
       Применить в мультикошельке
     </StyledApplyButton>
   );
+
+  return isEligible ? button : <AppTooltip text={reason}>{button}</AppTooltip>;
 };
 
-const StyledApplyButton = styled(Button)(({ theme }) => ({
-  height: 44,
-  minWidth: 220,
-  "*": {
-    fontSize: 15,
-    fontWeight: 600,
-  },
-}));
+const StyledApplyButton = styled(Button)<{ grey?: boolean }>(
+  ({ theme, grey }) => ({
+    height: 44,
+    minWidth: 220,
+    "*": {
+      fontSize: 15,
+      fontWeight: 600,
+      ...(grey ? { color: theme.palette.text.disabled } : {}),
+    },
+    ...(grey
+      ? {
+          background: theme.palette.action.disabledBackground,
+          color: theme.palette.text.disabled,
+          border: `1px solid ${theme.palette.divider}`,
+          cursor: "not-allowed",
+        }
+      : {}),
+  }),
+);
 
 const StyledShareButton = styled(ShareButton)({
   marginLeft: "auto",
