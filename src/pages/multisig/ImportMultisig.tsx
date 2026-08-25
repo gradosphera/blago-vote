@@ -40,7 +40,7 @@ export default function ImportMultisig() {
       </Button>
       <Typography variant="h4">Импортировать мультикошелек</Typography>
       <Typography className="value">
-        Введите адрес мультикошелька (например, из tonviewer или другого
+        Введите адрес мультикошелька (например, из tonscan или другого
         источника).
       </Typography>
       <Box className="newOrderField">

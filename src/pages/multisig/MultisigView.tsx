@@ -174,7 +174,7 @@ export default function MultisigView() {
     let statsHTML = "";
     if (jettonLine || showLink) {
       const link = showLink
-        ? '<a class="orderListItem_link" href="https://tonviewer.com/transaction/' +
+        ? '<a class="orderListItem_link" href="https://tonscan.org/ru/tx/' +
           base64toHex(lastOrder.transactionHash) +
           '" target="_blank">ссылка</a>'
         : "";

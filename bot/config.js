@@ -22,7 +22,7 @@ export const config = {
 
   siteUrl: "https://blago-vote.vercel.app",
   webappUrl: env.WEBAPP_URL || "https://t.me/gradosphera_vote_bot",
-  tonviewer: "https://tonviewer.com",
+  tonviewer: "https://tonscan.org/ru/address",
 
   // Маппинг названий ДАО → path в Telegram WebApp
   // Формат: "Название": "path"

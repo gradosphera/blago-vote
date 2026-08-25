@@ -29,7 +29,7 @@ export const validateUserFriendlyAddress = (
 export const explorerUrl = (address: string, isTestnet: boolean) => {
   Address.parseFriendly(address); // check validity
   return (
-    (isTestnet ? "https://testnet.tonviewer.com/" : "https://tonviewer.com/") +
+    (isTestnet ? "https://testnet.tonviewer.com/" : "https://tonscan.org/ru/address/") +
     address
   );
 };

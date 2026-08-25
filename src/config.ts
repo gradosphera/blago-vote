@@ -2,7 +2,7 @@ import _ from "lodash";
 import { ReleaseMode, VotingPowerStrategyType } from "ton-vote-contracts-sdk";
 import { StrategyOption } from "types";
 
-export const TONVIEWER = "https://tonviewer.com";
+export const TONVIEWER = "https://tonscan.org/ru/address";
 export const TONVIEWER_ADDRESS_URL = `${TONVIEWER}/`;
 export const APP_NAME = "Голос";
 
