@@ -8,7 +8,7 @@ const agent = config.proxy ? new SocksProxyAgent(config.proxy) : undefined;
 
 const http = axios.create({
   baseURL: BASE,
-  timeout: 30_000,
+  timeout: 60_000,
   httpsAgent: agent,
   proxy: false,
 });

@@ -427,9 +427,15 @@ async function pollProposals(state) {
 
 // ── Main ──
 async function main() {
-  const bot = await getMe();
+  let bot = null;
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    bot = await getMe();
+    if (bot) break;
+    log(`getMe failed (attempt ${attempt}/10), retrying in 5s...`);
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
   if (!bot) {
-    throw new Error("Failed to connect to Telegram. Check BOT_TOKEN.");
+    throw new Error("Failed to connect to Telegram. Check BOT_TOKEN and proxy.");
   }
   log(`Bot started: @${bot.username}`);
 
