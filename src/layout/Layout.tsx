@@ -46,8 +46,8 @@ function Layout({ children }: { children?: ReactNode }) {
             <StyledContent toolbarOffset={!sidebarHidden}>
               {children}
               <Outlet />
+              <Footer />
             </StyledContent>
-            <Footer />
           </ErrorBoundary>
         </StyledContainer>
       </Fade>
