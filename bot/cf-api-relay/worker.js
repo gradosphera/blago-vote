@@ -4,30 +4,48 @@ export default {
     const target = new URL("https://api.telegram.org" + url.pathname + url.search);
 
     const headers = new Headers(request.headers);
-    ["host", "content-length", "cf-connecting-ip", "cf-ray", "cf-visitor"].forEach(
+    ["host", "content-length", "accept-encoding", "cf-connecting-ip", "cf-ray", "cf-visitor"].forEach(
       (h) => headers.delete(h)
     );
 
-    const resp = await fetch(target, {
-      method: request.method,
-      headers,
-      body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
-      redirect: "manual",
+    const headersOut = new Headers({
+      "content-type": "application/json",
+      "x-relay-version": "3-timeout",
     });
 
-    const headersOut = new Headers(resp.headers);
-    [
-      "content-length",
-      "content-encoding",
-      "transfer-encoding",
-      "connection",
-      "keep-alive",
-    ].forEach((h) => headersOut.delete(h));
+    try {
+      const resp = await fetch(target, {
+        method: request.method,
+        headers,
+        body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
+        redirect: "manual",
+        signal: AbortSignal.timeout(15000),
+      });
 
-    return new Response(resp.body, {
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: headersOut,
-    });
+      const body = await resp.arrayBuffer();
+      headersOut.set("x-upstream-status", String(resp.status));
+      headersOut.set("x-upstream-bytes", String(body.byteLength));
+
+      return new Response(body, {
+        status: resp.status,
+        statusText: resp.statusText,
+        headers: headersOut,
+      });
+    } catch (e) {
+      headersOut.set("x-upstream-status", "ERR");
+      headersOut.set("x-upstream-error", `${e.name}: ${e.message}`);
+
+      const body = JSON.stringify({
+        ok: false,
+        error_code: 502,
+        description: `relay upstream: ${e.name}: ${e.message}`,
+      });
+
+      return new Response(body, {
+        status: 502,
+        statusText: "Bad Gateway",
+        headers: headersOut,
+      });
+    }
   },
 };

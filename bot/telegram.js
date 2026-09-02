@@ -20,7 +20,7 @@ if (proxy) {
 
 const http = axios.create({
   baseURL: BASE,
-  timeout: 60_000,
+  timeout: 40_000,
   httpsAgent: agent,
   proxy: false,
 });
@@ -51,23 +51,43 @@ export async function checkProxyReachable(proxyUrl) {
   });
 }
 
-async function request(method, data = {}) {
-  try {
-    const res = await http.post(`/${method}`, data);
-    if (!res.data.ok) {
-      log(`Telegram API error [${method}]:`, res.data.description);
+function isTransientNetworkError(err, detail) {
+  // Timeout/abort — всегда ретраим, даже если заголовки 200 пришли (тело зависло).
+  if (["ECONNABORTED", "ETIMEDOUT", "ESOCKETTIMEDOUT"].includes(err.code)) return true;
+  // Другие сетевые ошибки — только если Telegram не ответил (нет response).
+  if (err.response) return false;
+  return /ECONNRESET|EPIPE|ENETUNREACH|ENETDOWN|EAI_AGAIN|socket hang up|fetch failed/i.test(
+    String(detail),
+  );
+}
+
+async function request(method, data = {}, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await http.post(`/${method}`, data);
+      if (!res.data.ok) {
+        log(`Telegram API error [${method}]:`, res.data.description);
+        return null;
+      }
+      return res.data.result;
+    } catch (err) {
+      const detail =
+        err.response?.data?.description ||
+        err.response?.statusText ||
+        err.code ||
+        err.message ||
+        "unknown error";
+
+      // Транзиентные сетевые сбои (DPI/сеть режет часть соединений к релею) — пробуем ещё раз.
+      if (isTransientNetworkError(err, detail) && attempt < retries) {
+        const wait = 1500 * (attempt + 1);
+        log(`Telegram API request failed [${method}]: ${detail} (retry ${attempt + 1}/${retries}, ${wait}ms)`);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
+      }
+      log(`Telegram API request failed [${method}]:`, err.code || detail);
       return null;
     }
-    return res.data.result;
-  } catch (err) {
-    const detail =
-      err.response?.data?.description ||
-      err.response?.statusText ||
-      err.code ||
-      err.message ||
-      "unknown error";
-    log(`Telegram API request failed [${method}]:`, detail);
-    return null;
   }
 }
 
