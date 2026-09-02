@@ -11,12 +11,17 @@ interface Props {
 export function Header({ title, component, className = '' }: Props) {
   return (
     <StyledHeader justifyContent="space-between" className={`header ${className}`}>
-      <StyledTitle>{title}</StyledTitle>
+      <StyledHeaderTitle>{title}</StyledHeaderTitle>
       {component}
     </StyledHeader>
   );
 }
 
+
+const StyledHeaderTitle = styled(StyledTitle)({
+  flex: "1 1 auto",
+  minWidth: 0,
+});
 
 const StyledHeader = styled(StyledFlexRow)({
     marginBottom:20,

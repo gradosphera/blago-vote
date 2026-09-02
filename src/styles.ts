@@ -190,6 +190,9 @@ export const StyledTitle = styled(Typography)(({ theme }) => ({
   fontWeight: 700,
   lineHeight: "28px",
   fontSize: 20,
+  minWidth: 0,
+  overflowWrap: "break-word",
+  wordBreak: "break-word",
   "@media (max-width: 600px)": {
     fontSize: 18,
     lineHeight: "25px",
