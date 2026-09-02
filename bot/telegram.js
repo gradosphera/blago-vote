@@ -1,10 +1,22 @@
 import axios from "axios";
 import { SocksProxyAgent } from "socks-proxy-agent";
+import { createConnection } from "net";
 import { config, log } from "./config.js";
 
-const BASE = `https://api.telegram.org/bot${config.botToken}`;
+const BASE = `${config.telegramApiBase}/bot${config.botToken}`;
 
-const agent = config.proxy ? new SocksProxyAgent(config.proxy) : undefined;
+if (config.telegramApiBase !== "https://api.telegram.org") {
+  log(`Telegram API host: ${config.telegramApiBase} (релей)`);
+}
+
+const proxy = config.proxy;
+const agent = proxy ? new SocksProxyAgent(proxy) : undefined;
+
+if (proxy) {
+  log(`Telegram egress proxy: ${proxy}`);
+} else {
+  log("Telegram egress proxy: не задан (прямое подключение)");
+}
 
 const http = axios.create({
   baseURL: BASE,
@@ -12,6 +24,32 @@ const http = axios.create({
   httpsAgent: agent,
   proxy: false,
 });
+
+// Проверяет, что SOCKS5-прокси слушает host:port. Быстрый fail-fast диагностики.
+export async function checkProxyReachable(proxyUrl) {
+  let host = "127.0.0.1";
+  let port = 9100;
+  try {
+    const u = new URL(proxyUrl);
+    host = u.hostname;
+    if (u.port) port = Number(u.port);
+  } catch {}
+  return new Promise((resolve) => {
+    const sock = createConnection({ host, port, timeout: 3000 });
+    sock.once("connect", () => {
+      sock.destroy();
+      resolve({ ok: true, host, port });
+    });
+    sock.once("error", (e) => {
+      sock.destroy();
+      resolve({ ok: false, host, port, error: e.code || e.message });
+    });
+    sock.once("timeout", () => {
+      sock.destroy();
+      resolve({ ok: false, host, port, error: "timeout" });
+    });
+  });
+}
 
 async function request(method, data = {}) {
   try {
@@ -22,7 +60,12 @@ async function request(method, data = {}) {
     }
     return res.data.result;
   } catch (err) {
-    const detail = err.response?.data?.description || err.message;
+    const detail =
+      err.response?.data?.description ||
+      err.response?.statusText ||
+      err.code ||
+      err.message ||
+      "unknown error";
     log(`Telegram API request failed [${method}]:`, detail);
     return null;
   }

@@ -14,12 +14,17 @@ export const config = {
   pollInterval: Number(env.POLL_INTERVAL) || 60_000,
   daoAddress: env.DAO_ADDRESS || "",
   apiBase: env.API_BASE || "https://api.ton.vote",
+  // Хост Bot API. По умолчанию api.telegram.org. Если Telegram заблокирован в сети,
+  // укажите адрес вашего Cloudflare Worker-релея (см. bot/cf-api-relay/ и README):
+  //   TELEGRAM_API_BASE=https://<имя-subdomain>.workers.dev
+  telegramApiBase: env.TELEGRAM_API_BASE || "https://api.telegram.org",
   port: Number(env.PORT) || 0,
   debug: env.DEBUG === "true",
 
   // SOCKS5 egress proxy for the bot (e.g. gost on the edge node, see bot/gost.service).
-  // Override via PROXY in .env.
-  proxy: env.PROXY || "socks5h://127.0.0.1:9100",
+  // Задаётся через PROXY в .env. Пусто = прямое подключение к Telegram
+  // (например, для серверов вне сетей с блокировкой Telegram).
+  proxy: env.PROXY || "",
 
   siteUrl: "https://blago-vote.vercel.app",
   webappUrl: env.WEBAPP_URL || "https://t.me/gradosphera_vote_bot",

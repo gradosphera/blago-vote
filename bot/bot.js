@@ -1,5 +1,5 @@
-import { config, log } from "./config.js";
-import { sendMessage, getMe } from "./telegram.js";
+import { config, log, validateConfig } from "./config.js";
+import { sendMessage, getMe, checkProxyReachable } from "./telegram.js";
 import { fetchDaos, fetchProposal, fetchDao } from "./api.js";
 import { createServer } from "http";
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -427,15 +427,37 @@ async function pollProposals(state) {
 
 // ── Main ──
 async function main() {
+  validateConfig();
+
+  // Диагностика прокси перед попыткой connect к Telegram
+  if (config.proxy) {
+    const pr = await checkProxyReachable(config.proxy);
+    if (pr.ok) {
+      log(`Proxy OK: ${pr.host}:${pr.port}`);
+    } else {
+      log(
+        `Proxy ${config.proxy} недоступен (${pr.error}). ` +
+        `Если gost не запущен: systemctl --user start gost`,
+      );
+    }
+  } else {
+    log("PROXY не задан. Если Telegram заблокирован в вашей сети, укажите PROXY=socks5h://... в bot/.env");
+  }
+
   let bot = null;
+  let lastError = "";
   for (let attempt = 1; attempt <= 10; attempt++) {
     bot = await getMe();
     if (bot) break;
+    lastError = `(attempt ${attempt}/10)`;
     log(`getMe failed (attempt ${attempt}/10), retrying in 5s...`);
     await new Promise((r) => setTimeout(r, 5_000));
   }
   if (!bot) {
-    throw new Error("Failed to connect to Telegram. Check BOT_TOKEN and proxy.");
+    throw new Error(
+      `Failed to connect to Telegram after retries. BOT_TOKEN=${config.botToken ? "set" : "MISSING"}, ` +
+      `proxy=${config.proxy || "direct"}. Check token and proxy. ${lastError}`,
+    );
   }
   log(`Bot started: @${bot.username}`);
 
