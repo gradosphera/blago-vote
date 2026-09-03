@@ -73,27 +73,26 @@ function proposalLink(address) {
   return `${config.siteUrl}/proposal/${address}`;
 }
 
-function webAppLink(daoName) {
-  const path = config.daoWebappMap[daoName] || "";
-  return path ? `${config.webappUrl}/${path}` : `${config.siteUrl}`;
-}
-
 function tonviewerLink(address) {
   return `${config.tonviewer}/${address}`;
 }
 
-function webAppMarkup(daoName) {
-  return {
-    reply_markup: {
-      inline_keyboard: [[{ text: "📋 Открыть в приложении", web_app: { url: webAppLink(daoName) } }]],
-    },
-  };
+// Глубокая ссылка в Telegram WebApp (mini app) на конкретное предложение.
+// Формат: https://t.me/<бот>/vote?startapp=<адрес-предложения>
+// При открытии Telegram передаёт start_param=<адрес> в WebApp, а фронтенд
+// (чтение start_param в src/App.tsx) переходит на /proposal/<адрес>.
+function webAppProposalLink(address) {
+  return `${config.webappUrl}/vote?startapp=${address}`;
 }
 
-function urlMarkup(address) {
+// Кнопка открытия предложения в Telegram mini app.
+// Используется И в канале, и в личных чатах, поскольку web_app-кнопки
+// в каналах не поддерживаются — берём обычную url-кнопку на t.me-глубокую ссылку,
+// которая запускает WebApp (работает везде).
+function openAppMarkup(address) {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: "📋 Открыть в приложении", url: proposalLink(address) }]],
+      inline_keyboard: [[{ text: "📋 Открыть в приложении", url: webAppProposalLink(address) }]],
     },
   };
 }
@@ -101,28 +100,30 @@ function urlMarkup(address) {
 // ── Resolve DAO list (handles proposal address in DAO_ADDRESS) ──
 let _cachedDaoList = null;
 
+async function resolveDaoEntry(entry) {
+  const dao = await fetchDao(entry);
+  if (dao?.daoProposals?.length) return dao;
+
+  // Not a DAO — find parent DAO by proposal address
+  const allDaos = await fetchDaos();
+  for (const d of allDaos) {
+    if ((d.daoProposals || []).includes(entry)) return d;
+  }
+  return null;
+}
+
 async function getDaoList() {
   if (_cachedDaoList) return _cachedDaoList;
 
-  const trackedDao = config.daoAddress;
+  const tracked = config.daoAddresses;
 
-  if (trackedDao) {
-    const dao = await fetchDao(trackedDao);
-    if (dao?.daoProposals?.length) {
-      _cachedDaoList = [dao];
-      return _cachedDaoList;
+  if (tracked.length) {
+    const byAddr = new Map();
+    for (const entry of tracked) {
+      const dao = await resolveDaoEntry(entry);
+      if (dao) byAddr.set(dao.daoAddress, dao);
     }
-
-    // Not a DAO — find parent DAO by proposal address
-    const allDaos = await fetchDaos();
-    for (const d of allDaos) {
-      if ((d.daoProposals || []).includes(trackedDao)) {
-        _cachedDaoList = [d];
-        return _cachedDaoList;
-      }
-    }
-
-    _cachedDaoList = [];
+    _cachedDaoList = [...byAddr.values()];
     return _cachedDaoList;
   }
 
@@ -364,11 +365,12 @@ function buildEndMessage(daoName, proposal, addr) {
 // ── Send to channel + private chats ──
 async function sendToAll(text, address, daoName) {
   let ok = false;
+  const markup = openAppMarkup(address);
   if (config.channelId) {
-    if (await sendMessage(config.channelId, text, urlMarkup(address))) ok = true;
+    if (await sendMessage(config.channelId, text, markup)) ok = true;
   }
   for (const chatId of config.privateChatIds) {
-    await sendMessage(chatId, text, webAppMarkup(daoName));
+    await sendMessage(chatId, text, markup);
   }
   return ok;
 }
@@ -463,31 +465,55 @@ async function main() {
 
   const state = loadState();
 
-  // On first startup: send latest active/upcoming + latest ended proposals
-  if (!state.lastProposalSent) {
-    log("Finding latest proposals...");
+  // On first startup: don't publish existing votes (they are already in the channel).
+  // Only seed current proposals into state, then track NEW proposals going forward.
+  if (!state.seeded) {
+    log("Seeding current proposals...");
 
-    // Latest active or upcoming (not ended)
-    const latestActive = await findLatestProposal(Status.CLOSED);
-    if (latestActive) {
-      const text = buildNewProposalMessage(latestActive.daoName, latestActive.proposal, latestActive.address);
-      if (await sendToAll(text, latestActive.address, latestActive.daoName)) {
-        log(`[LATEST ACTIVE] ${latestActive.address} (${latestActive.daoName})`);
-        state.lastProposalSent = latestActive.address;
+    const daoList = await getDaoList();
+    let seeded = 0;
+    for (const dao of daoList) {
+      const daoName = parseLang(dao.daoMetadata?.metadataArgs?.name);
+      for (const proposalAddr of dao.daoProposals || []) {
+        const proposal = await fetchProposal(proposalAddr);
+        if (!proposal?.metadata) continue;
+        const status = getProposalStatus(proposal.metadata);
+        if (!status) continue;
+        state.proposals[proposalAddr] = {
+          status,
+          daoName,
+          lastCheck: Date.now(),
+        };
+        seeded++;
       }
     }
 
-    // Latest ended
-    const latestEnded = await findLatestProposal(null, Status.CLOSED);
-    if (latestEnded) {
-      const text = buildEndMessage(latestEnded.daoName, latestEnded.proposal, latestEnded.address);
-      if (await sendToAll(text, latestEnded.address, latestEnded.daoName)) {
-        log(`[LATEST ENDED] ${latestEnded.address} (${latestEnded.daoName})`);
-        state.lastEndedSent = latestEnded.address;
-      }
-    }
-
+    state.seeded = true;
     saveState(state);
+    log(`Seeded ${seeded} proposals.`);
+
+    // Временно: публиковать последние голосования ДАО из списка (SEND_LATEST=true).
+    if (config.sendLatest) {
+      log("SEND_LATEST=true — публикуем последние голосования ДАО...");
+
+      // Последнее активное/предстоящее (не завершённое)
+      const latestActive = await findLatestProposal(Status.CLOSED);
+      if (latestActive) {
+        const text = buildNewProposalMessage(latestActive.daoName, latestActive.proposal, latestActive.address);
+        if (await sendToAll(text, latestActive.address, latestActive.daoName)) {
+          log(`[LATEST ACTIVE] ${latestActive.address} (${latestActive.daoName})`);
+        }
+      }
+
+      // Последнее завершённое
+      const latestEnded = await findLatestProposal(null, Status.CLOSED);
+      if (latestEnded) {
+        const text = buildEndMessage(latestEnded.daoName, latestEnded.proposal, latestEnded.address);
+        if (await sendToAll(text, latestEnded.address, latestEnded.daoName)) {
+          log(`[LATEST ENDED] ${latestEnded.address} (${latestEnded.daoName})`);
+        }
+      }
+    }
   }
 
   async function tick() {
@@ -502,7 +528,8 @@ async function main() {
 
   await tick();
   setInterval(tick, config.pollInterval);
-  log(`Polling every ${config.pollInterval / 1000}s`);
+  const hours = Math.round((config.pollInterval / 1000 / 3600) * 10) / 10;
+  log(`Polling every ${config.pollInterval / 1000}s (${hours}h)`);
 
   if (config.port > 0) {
     createServer((req, res) => {

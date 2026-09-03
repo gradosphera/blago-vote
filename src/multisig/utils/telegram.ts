@@ -49,3 +49,17 @@ export const initTelegram = (): void => {
         // игнорируем: методы опциональны в старых версиях
     }
 };
+
+// Параметр "startapp" из глубокой ссылки на Mini App:
+// https://t.me/<бот>/vote?startapp=<VAL> → initDataUnsafe.start_param === <VAL>.
+// Используется ботом для открытия Mini App сразу на странице предложения
+// (значение = адрес предложения, см. bot/bot.js webAppProposalLink).
+export const getStartParam = (): string | undefined => {
+    try {
+        const wa = getWebApp();
+        const unsafe = (wa?.initDataUnsafe as { start_param?: string } | undefined) ?? {};
+        return typeof unsafe.start_param === "string" && unsafe.start_param ? unsafe.start_param : undefined;
+    } catch {
+        return undefined;
+    }
+};

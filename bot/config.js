@@ -13,6 +13,12 @@ export const config = {
   privateChatIds: (env.PRIVATE_CHAT_IDS || "").split(",").filter(Boolean),
   pollInterval: Number(env.POLL_INTERVAL) || 60_000,
   daoAddress: env.DAO_ADDRESS || "",
+  // Временно: публиковать последние голосования ДАО при первом запуске (true/false).
+  sendLatest: env.SEND_LATEST === "true",
+  daoAddresses: (env.DAO_ADDRESS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
   apiBase: env.API_BASE || "https://api.ton.vote",
   // Хост Bot API. По умолчанию api.telegram.org. Если Telegram заблокирован в сети,
   // укажите адрес вашего Cloudflare Worker-релея (см. bot/cf-api-relay/ и README):

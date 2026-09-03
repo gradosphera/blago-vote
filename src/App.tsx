@@ -8,13 +8,31 @@ import { getGlobalStyles } from "styles";
 import { useRouter } from "router/router";
 import "styles";
 import { darkTheme, lightTheme, useInitThemeMode } from "theme";
+import { getStartParam, IS_TELEGRAM, initTelegram } from "multisig/utils/telegram";
 
 const useInitApp = () => {
   useInitThemeMode();
 };
 
+// Перенаправление из Telegram Mini App на страницу предложения, если переход
+// открыт кнопкой бота («Открыть в приложении») — в start_param передан адрес предложения.
+function TelegramStartParamRedirect({ router }: { router: ReturnType<typeof useRouter> }) {
+  useEffect(() => {
+    if (!IS_TELEGRAM) return;
+    const param = getStartParam();
+    if (param) {
+      router.navigate(`/proposal/${param}`, { replace: true });
+    }
+  }, [router]);
+  return null;
+}
+
 function App() {
   useInitApp();
+
+  useEffect(() => {
+    initTelegram();
+  }, []);
 
   useEffect(() => {
     const loader = document.querySelector(".app-loader");
@@ -47,6 +65,7 @@ function App() {
         <GlobalStyles styles={getGlobalStyles(theme)} />
         <Suspense>
           <RouterProvider router={router} />
+          <TelegramStartParamRedirect router={router} />
         </Suspense>
       </ThemeProvider>
     </>
