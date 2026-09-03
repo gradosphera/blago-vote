@@ -77,6 +77,66 @@ function tonviewerLink(address) {
   return `${config.tonviewer}/${address}`;
 }
 
+// Жетон «Благо» — адрес контракта + ссылка на него (используется для веса голосов).
+const BLAGO_JETTON_ADDRESS = "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll";
+const BLAGO_JETTON_NAME = "Благо";
+
+// Дробная часть токена: 1 токен = 10^9 (9 знаков после запятой), как на платформе.
+// Значение приходит строкой в нано-единицах (целое). Делим программно (BigInt),
+// чтобы не терять точность на больших числах.
+function fromNano(value) {
+  let s = String(value ?? 0);
+  if (!s || s === "0") return "0";
+  s = s.replace(/^\./, "0.");
+  let intPart = "0";
+  let fracPart = "";
+  if (s.includes(".")) {
+    [intPart, fracPart] = s.split(".");
+  } else {
+    intPart = s;
+  }
+  const raw = intPart + fracPart;
+  try {
+    const big = BigInt(raw || "0");
+    const scaled = String(big).padStart(9 + 1, "0");
+    const int = scaled.slice(0, -9) || "0";
+    const frac = scaled.slice(-9).replace(/0+$/, "");
+    return frac ? `${int}.${frac}` : int;
+  } catch {
+    return "0";
+  }
+}
+
+// Человекочитаемый формат чисел: 12 329 → "12.33 тыс.", 1 234 567 → "1.23 млн."
+// Тот же алгоритм, что в src/utils.ts (nFormatter), чтобы вывод совпадал с платформой.
+function formatTokens(value) {
+  const num = Number(value) || 0;
+  const lookup = [
+    { value: 1e15, symbol: " квадрлн." },
+    { value: 1e12, symbol: " трлн." },
+    { value: 1e9, symbol: " млрд." },
+    { value: 1e6, symbol: " млн." },
+    { value: 1e3, symbol: " тыс." },
+    { value: 1, symbol: "" },
+  ];
+  if (num < 1) return String(Number(value).toFixed(5).replace(/(\.0+$)|(\.[0-9]*[1-9])0+$/, "$1"));
+  for (const item of lookup) {
+    if (num >= item.value) {
+      const formatted = (num / item.value)
+        .toFixed(2)
+        .replace(/(\.0+$)|(\.[0-9]*[1-9])0+$/, "$1");
+      return `${formatted}${item.symbol}`;
+    }
+  }
+  return "0";
+}
+
+// Строка «Общий вес» в формате платформы: <значение> жетонов Благо (со ссылкой на жетон).
+function formatTotalWeight(totalWeight) {
+  const tokens = fromNano(totalWeight);
+  return `<b>Общий вес:</b> ${formatTokens(tokens)} ${BLAGO_JETTON_NAME} (<a href="${tonviewerLink(BLAGO_JETTON_ADDRESS)}">жетон ${BLAGO_JETTON_NAME}</a>)`;
+}
+
 // Глубокая ссылка в Telegram WebApp (mini app) на конкретное предложение.
 // Формат: https://t.me/<бот>/vote?startapp=<адрес-предложения>
 // При открытии Telegram передаёт start_param=<адрес> в WebApp, а фронтенд
@@ -354,7 +414,7 @@ function buildEndMessage(daoName, proposal, addr) {
   lines.push(
     ``,
     `<b>Всего голосов:</b> ${totalVotes}`,
-    `<b>Общий вес:</b> ${Number(totalWeight).toLocaleString("ru-RU")}`,
+    formatTotalWeight(totalWeight),
     ``,
     `<a href="${proposalLink(addr)}">📊 Подробнее</a>`,
   );

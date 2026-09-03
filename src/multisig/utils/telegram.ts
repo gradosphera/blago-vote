@@ -23,7 +23,12 @@ const getWebApp = (): TelegramWebAppLike | null => {
 // Детекция по хэшу обязательна: вне Telegram объект WebApp может отсутствовать,
 // а если подключить официальный SDK-скрипт, он появится и в обычном браузере
 // (с пустым initData). По хэшу же можно однозначно понять, что мы в Telegram.
-export const IS_TELEGRAM: boolean = (() => {
+//
+// ВАЖНО: это функция, а не константа. SDK Telegram подставляется в window не
+// мгновенно (из скрипта-провайдера), и на момент первого импорта его может ещё
+// не быть — константа навсегда зафиксировала бы false. Функция же проверяет
+// актуальное состояние каждый раз при вызове.
+export const isTelegram = (): boolean => {
     try {
         if (typeof window === "undefined") return false;
         if ((window.location.hash || "").includes("tgWebAppData=")) return true;
@@ -32,10 +37,13 @@ export const IS_TELEGRAM: boolean = (() => {
     } catch {
         return false;
     }
-})();
+};
+
+// Обратная совместимость: константа для вызовов, где важно проверить до старта.
+export const IS_TELEGRAM: boolean = isTelegram();
 
 export const initTelegram = (): void => {
-    if (!IS_TELEGRAM) return;
+    if (!isTelegram()) return;
     const tg = getWebApp();
     if (!tg || !tg.ready) return;
 
