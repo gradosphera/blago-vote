@@ -1,5 +1,5 @@
 import { Fade, styled } from "@mui/material";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { StyledFlexColumn, StyledGrid } from "styles";
 import { QueryParamProvider } from "use-query-params";
 import { ReactRouter6Adapter } from "use-query-params/adapters/react-router-6";
@@ -16,6 +16,7 @@ import { useAppQueryParams, useAppSettings } from "hooks/hooks";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { LatestBlock } from "components";
 import { useSettingsStore } from "store";
+import { getStartParam, isTelegram } from "multisig/utils/telegram";
 
 const useIsBeta = () => {
   const {
@@ -29,6 +30,42 @@ const useIsBeta = () => {
     }
   }, [dev, setBeta]);
 };
+
+// Перенаправление из Telegram Mini App на страницу предложения, если переход
+// открыт кнопкой бота («Открыть в приложении») — в start_param передан адрес.
+// Компонент находиТСЯ ВНУТРИ Router, поэтому useNavigate() гарантированно
+// работает. isTelegram()/getStartParam() читаются на момент вызова (SDK
+// подставляется асинхронно), поэтому повторяем попытки с паузой.
+function TelegramStartParamRedirect() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isTelegram()) return;
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30;
+
+    const tryRedirect = () => {
+      if (cancelled) return;
+      const param = getStartParam();
+      if (param) {
+        navigate(`/proposal/${param}`, { replace: true });
+        return;
+      }
+      if (attempts < MAX_ATTEMPTS) {
+        attempts += 1;
+        setTimeout(tryRedirect, 250);
+      }
+    };
+
+    tryRedirect();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
+
+  return null;
+}
 
 function Layout({ children }: { children?: ReactNode }) {
   useIsBeta();
@@ -51,6 +88,7 @@ function Layout({ children }: { children?: ReactNode }) {
           </ErrorBoundary>
         </StyledContainer>
       </Fade>
+      <TelegramStartParamRedirect />
       <ScrollTop />
       {/* <LatestBlock /> */}
       <Toaster

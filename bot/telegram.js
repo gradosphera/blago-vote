@@ -25,6 +25,15 @@ const http = axios.create({
   proxy: false,
 });
 
+// Отдельный инстанс для long-polling (getUpdates): стандартный таймаут 40с
+// меньше длительности long-poll ответа (обычно до 50с), иначе запрос бы срывался.
+const httpLongPoll = axios.create({
+  baseURL: BASE,
+  timeout: 60_000,
+  httpsAgent: agent,
+  proxy: false,
+});
+
 // Проверяет, что SOCKS5-прокси слушает host:port. Быстрый fail-fast диагностики.
 export async function checkProxyReachable(proxyUrl) {
   let host = "127.0.0.1";
@@ -61,10 +70,10 @@ function isTransientNetworkError(err, detail) {
   );
 }
 
-async function request(method, data = {}, retries = 2) {
+async function request(method, data = {}, retries = 2, client = http) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await http.post(`/${method}`, data);
+      const res = await client.post(`/${method}`, data);
       if (!res.data.ok) {
         log(`Telegram API error [${method}]:`, res.data.description);
         return null;
@@ -114,4 +123,29 @@ export async function editMessage(chatId, messageId, text, options = {}) {
 
 export async function getMe() {
   return request("getMe");
+}
+
+// Long-polling: получает входящие обновления (сообщения, команды).
+// Использует отдельный инстанс с увеличенным таймаутом (см. httpLongPoll).
+export async function getUpdates({ offset = 0, limit = 50, timeout = 25 } = {}) {
+  return request("getUpdates", { offset, limit, timeout }, 2, httpLongPoll);
+}
+
+// Отправка фото с подписью (HTML). Без retries-коллизий — стандартные ретраи.
+export async function sendPhoto(chatId, photo, caption, options = {}) {
+  return request("sendPhoto", {
+    chat_id: chatId,
+    photo,
+    caption: caption || "",
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...options,
+  });
+}
+
+// Регистрирует команды бота (показываются в меню "/").
+export async function setMyCommands(commands) {
+  return request("setMyCommands", {
+    commands: commands.map((c) => ({ command: c.command, description: c.description })),
+  });
 }

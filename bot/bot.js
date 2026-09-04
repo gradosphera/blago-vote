@@ -1,5 +1,5 @@
 import { config, log, validateConfig } from "./config.js";
-import { sendMessage, getMe, checkProxyReachable } from "./telegram.js";
+import { sendMessage, getMe, checkProxyReachable, getUpdates, sendPhoto, setMyCommands } from "./telegram.js";
 import { fetchDaos, fetchProposal, fetchDao } from "./api.js";
 import { createServer } from "http";
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -155,6 +155,117 @@ function openAppMarkup(address) {
       inline_keyboard: [[{ text: "📋 Открыть в приложении", url: webAppProposalLink(address) }]],
     },
   };
+}
+
+// ── Команды /start и /help ──
+
+// Ссылка на запуск WebApp (Mini App) без конкретного предложения — общая страница.
+function webAppLink() {
+  return `${config.webappUrl}/vote`;
+}
+
+// Разметка главной страницы /start с изображением платформы.
+function startPhoto() {
+  return "https://raw.githubusercontent.com/gradosphera/brand-assets/refs/heads/main/vote/640x360_bot.jpg";
+}
+
+// Кнопки для /start: запуск WebApp + переход на сайт.
+function startMarkup() {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🚀 Открыть Платформу Голос", url: webAppLink() }],
+        [{ text: "🌐 Сайт платформы", url: config.siteUrl }],
+      ],
+    },
+  };
+}
+
+// Общий текст о платформе децентрализованного управления «Голос».
+function startText() {
+  return [
+    `<b>🏛 Платформа «Голос»</b> — децентрализованная платформа управления (governance), работающая на блокчейне <b>TON</b>.`,
+    ``,
+    `Здесь решения принимают сообщества голосованием: каждый участник может <b>выдвинуть предложение</b>, <b>обсудить</b> его и <b>проголосовать</b> — открыто, прозрачно и без посредников.`,
+    ``,
+    `<b>Как это работает:</b>`,
+    `• Предложения публикуются от имени ДАО и доступны всем участникам;`,
+    `• Голосование учитывает вес голоса (в т.ч. жетонов, таких как «Благо»);`,
+    `• Результаты подводятся автоматически по итогам периода голосования.`,
+    ``,
+    `<i>Нажмите «🚀 Открыть Платформу Голос», чтобы перейти в приложение.</i>`,
+  ].join("\n");
+}
+
+// Текст команды /help.
+function helpText() {
+  return [
+    `<b>ℹ️ Помощь</b>`,
+    ``,
+    `Это бот платформы децентрализованного управления «Голос» на блокчейне TON.`,
+    ``,
+    `<b>Команды:</b>`,
+    `• <code>/start</code> — информация о платформе и запуск приложения;`,
+    `• <code>/help</code> — эта справка.`,
+    ``,
+    `<b>Что умеет бот:</b>`,
+    `• Уведомляет о новых предложениях и голосованиях;`,
+    `• Сообщает о старте и завершении голосований с результатами;`,
+    `• Открывает конкретное предложение прямо в Mini App.`,
+    ``,
+    `Возникли вопросы? Обратитесь в сообщество вашего ДАО или на сайт платформы.`,
+  ].join("\n");
+}
+
+// Обработчик входящих сообщений (команды от пользователей).
+async function handleUpdate(update) {
+  // Реагируем только на обычные сообщения, не от ботов, в личном чате.
+  const msg = update?.message;
+  if (!msg) return;
+  if (msg.from?.is_bot) return;
+  const text = (msg.text || "").trim();
+  const chatId = msg.chat?.id;
+  if (!chatId) return;
+
+  if (text === "/start") {
+    // Фото + подпись с информацией + кнопки WebApp/сайт.
+    const ok = await sendPhoto(chatId, startPhoto(), startText(), startMarkup());
+    if (ok) log(`[cmd] /start → chat ${chatId}`);
+    return;
+  }
+
+  if (text === "/help") {
+    const ok = await sendMessage(chatId, helpText());
+    if (ok) log(`[cmd] /help → chat ${chatId}`);
+    return;
+  }
+}
+
+// Бесконечный long-poll цикл получения команд (запускается отдельно от поллинга предложений).
+async function runUpdatesPolling() {
+  let offset = 0;
+  let failures = 0;
+  while (true) {
+    try {
+      const updates = (await getUpdates({ offset, timeout: 25, limit: 50 })) || [];
+      failures = 0;
+      for (const u of updates) {
+        if (u.update_id >= offset) {
+          offset = u.update_id + 1;
+          try {
+            await handleUpdate(u);
+          } catch (e) {
+            log("Update handling error:", e.message);
+          }
+        }
+      }
+    } catch (err) {
+      failures += 1;
+      log(`getUpdates failed (${failures}):`, err.message);
+      // Раз в нестабильной сети — пауза перед следующим запросом.
+      await new Promise((r) => setTimeout(r, Math.min(1000 * failures, 10_000)));
+    }
+  }
 }
 
 // ── Resolve DAO list (handles proposal address in DAO_ADDRESS) ──
@@ -590,6 +701,17 @@ async function main() {
   setInterval(tick, config.pollInterval);
   const hours = Math.round((config.pollInterval / 1000 / 3600) * 10) / 10;
   log(`Polling every ${config.pollInterval / 1000}s (${hours}h)`);
+
+  // Регистрируем команды в меню "/" (не критично при сбое — бот всё равно отвечает).
+  try {
+    await setMyCommands([
+      { command: "start", description: "Информация о платформе и запуск приложения" },
+      { command: "help", description: "Помощь и справка по боту" },
+    ]);
+  } catch { }
+
+  // Запускаем приём входящих команд (/start, /help) в отдельном бесконечном цикле.
+  runUpdatesPolling();
 
   if (config.port > 0) {
     createServer((req, res) => {
