@@ -18,6 +18,15 @@
   padding-bottom: 40px;
 }
 
+/* Кнопки как в основном интерфейсе — скруглённые (пилюля) */
+.multisigPage .MuiButton-root {
+  border-radius: 40px;
+  text-transform: none;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+
 [data-theme="dark"] .multisigPage {
   --text-color: rgba(255, 255, 255, 0.9);
   --text-secondary: rgba(255, 255, 255, 0.6);
@@ -42,6 +51,12 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.multisigConfigRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .multisigLoading {
@@ -200,6 +215,71 @@
 .daoMultisigEmpty {
   width: 100%;
 }
+
+/* Карточка «Создать мультикошелек» — как «Создать новое ДАО» */
+.daoMultisigCreate {
+  width: calc(100% / 4 - 15px);
+  height: 270px;
+  box-sizing: border-box;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: transparent;
+  border: 1px dashed rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .daoMultisigCreate {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.daoMultisigCreate:hover {
+  border: 1px dashed var(--link-color);
+}
+
+.daoMultisigCreateText {
+  font-weight: 600;
+  font-size: 17px;
+  text-align: center;
+}
+
+/* Кнопка «Импортировать» внизу страницы */
+.multisigFooter {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+@media (max-width: 1050px) {
+  .daoMultisigItem {
+    width: calc(100% / 3 - 15px);
+  }
+  .daoMultisigCreate {
+    width: calc(100% / 3 - 15px);
+  }
+}
+
+@media (max-width: 768px) {
+  .daoMultisigItem {
+    width: calc(100% / 2 - 10px);
+  }
+  .daoMultisigCreate {
+    width: calc(100% / 2 - 10px);
+  }
+}
+
+@media (max-width: 420px) {
+  .daoMultisigItem {
+    width: 100%;
+  }
+  .daoMultisigCreate {
+    width: 100%;
+  }
+}
+
 
 .daoBalance {
   white-space: nowrap;
@@ -595,28 +675,13 @@
   flex-shrink: 0;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: 40px;
   width: 34px;
   height: 38px;
   cursor: pointer;
-}
-
-@media (max-width: 1050px) {
-  .daoMultisigItem {
-    width: calc(100% / 3 - 15px);
-  }
-}
-
-@media (max-width: 768px) {
-  .daoMultisigItem {
-    width: calc(100% / 2 - 10px);
-  }
-}
-
-@media (max-width: 420px) {
-  .daoMultisigItem {
-    width: 100%;
-  }
+  color: var(--text-color);
+  font-size: 18px;
+  line-height: 1;
 }
 
 /* INFO PANEL */

@@ -75,7 +75,7 @@ export default function MultisigView() {
     return (
       <Box className="multisigPage">
         <Button variant="text" onClick={() => multisigPage.root()}>
-          ← К списку
+          ← Назад
         </Button>
         <Typography color="error">Ошибка: {error}</Typography>
       </Box>
@@ -221,23 +221,16 @@ export default function MultisigView() {
 
   return (
     <Box className="multisigPage">
-      <Button variant="text" onClick={() => multisigPage.root()}>
-        ← К списку
-      </Button>
-
       <Box className="multisigHeader">
-        <Typography variant="h4">Мультикошелек</Typography>
-        <Box className="multisigHeaderButtons">
-          <Button variant="outlined" onClick={() => multisigPage.create()}>
-            Изменить конфигурацию
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => multisigPage.newOrder(address!)}
-          >
-            Создать заявку
-          </Button>
-        </Box>
+        <Button variant="outlined" onClick={() => multisigPage.root()}>
+          Назад
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => multisigPage.newOrder(address!)}
+        >
+          Создать заявку
+        </Button>
       </Box>
 
       <Box className="multisigCard">
@@ -266,6 +259,12 @@ export default function MultisigView() {
             <span className="thresholdBarCaption">Подписанты</span>
           </Box>
         </Box>
+      </Box>
+
+      <Box className="multisigConfigRow">
+        <Button variant="outlined" onClick={() => multisigPage.create()}>
+          Изменить конфигурацию
+        </Button>
       </Box>
 
       <Box className="multisigSection">

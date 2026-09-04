@@ -219,21 +219,6 @@ export function MultisigList() {
 
   return (
     <Box className="multisigPage">
-      <Box className="multisigHeader">
-        <Typography variant="h4">Мультикошелек</Typography>
-        <Box className="multisigHeaderButtons">
-          <Button variant="outlined" onClick={() => multisigPage.import()}>
-            Импортировать
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => multisigPage.create()}
-          >
-            Создать мультикошелек
-          </Button>
-        </Box>
-      </Box>
-
       <MultisigInfo />
 
       {loading && items.length === 0 ? (
@@ -242,76 +227,90 @@ export function MultisigList() {
         </Box>
       ) : items.length === 0 ? (
         <Box className="daoMultisigEmpty value">Список пуст</Box>
-      ) : (
-        <Box className="daoMultisigList">
-          {items.map((item, i) => {
-            const result = results[i];
-            const info = Address.parseFriendly(item.address);
-            info.isBounceable = true;
-            info.isTestOnly = IS_TESTNET;
-            const avatar = item.logo || item.jetton?.logo || GRAM_LOGO_URL;
-            const removeBadge =
-              item.mine && result?.status.ok && !result.status.isMultisig ? (
-                <button
-                  className="daoMultisigRemoveBadge"
-                  title="Скрыть карточку"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(item.address);
-                  }}
-                >
-                  ✕
-                </button>
-              ) : null;
-            return (
-              <Box
-                key={item.address}
-                className={
-                  "daoMultisigItem" + (item.mine ? " daoMultisigMine" : "")
-                }
-                onClick={() => onCardClick(item.address)}
+      ) : null}
+
+      <Box className="daoMultisigList">
+        {items.map((item, i) => {
+          const result = results[i];
+          const info = Address.parseFriendly(item.address);
+          info.isBounceable = true;
+          info.isTestOnly = IS_TESTNET;
+          const avatar = item.logo || item.jetton?.logo || GRAM_LOGO_URL;
+          const removeBadge =
+            item.mine && result?.status.ok && !result.status.isMultisig ? (
+              <button
+                className="daoMultisigRemoveBadge"
+                title="Скрыть карточку"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(item.address);
+                }}
               >
-                {removeBadge}
-                <Box className="daoMultisigAvatarWrap">
-                  <Box className="daoMultisigAvatar">
-                    <img src={avatar} alt="" />
-                  </Box>
-                  {result?.status.role &&
-                    result.status.role !== "none" && (
-                      <span
-                        className={
-                          "badge " +
-                          (result.status.role === "signer"
-                            ? "badgeSigner"
-                            : "badgeProposer")
-                        }
-                      >
-                        {result.status.role === "signer"
-                          ? "Подписант"
-                          : "Инициатор"}
-                      </span>
-                    )}
+                ✕
+              </button>
+            ) : null;
+          return (
+            <Box
+              key={item.address}
+              className={
+                "daoMultisigItem" + (item.mine ? " daoMultisigMine" : "")
+              }
+              onClick={() => onCardClick(item.address)}
+            >
+              {removeBadge}
+              <Box className="daoMultisigAvatarWrap">
+                <Box className="daoMultisigAvatar">
+                  <img src={avatar} alt="" />
                 </Box>
-                <Box className="daoMultisigName">
-                  {item.name || "Мультикошелек"}
-                </Box>
-                <Box className="daoMultisigAddress">
-                  <AddressLink address={info} />
-                </Box>
-                <Box
-                  className="daoMultisigBalances"
-                  dangerouslySetInnerHTML={{
-                    __html: balancesHTML(
-                      item,
-                      result === null ? undefined : result,
-                    ),
-                  }}
-                />
+                {result?.status.role &&
+                  result.status.role !== "none" && (
+                    <span
+                      className={
+                        "badge " +
+                        (result.status.role === "signer"
+                          ? "badgeSigner"
+                          : "badgeProposer")
+                      }
+                    >
+                      {result.status.role === "signer"
+                        ? "Подписант"
+                        : "Инициатор"}
+                    </span>
+                  )}
               </Box>
-            );
-          })}
+              <Box className="daoMultisigName">
+                {item.name || "Мультикошелек"}
+              </Box>
+              <Box className="daoMultisigAddress">
+                <AddressLink address={info} />
+              </Box>
+              <Box
+                className="daoMultisigBalances"
+                dangerouslySetInnerHTML={{
+                  __html: balancesHTML(
+                    item,
+                    result === null ? undefined : result,
+                  ),
+                }}
+              />
+            </Box>
+          );
+        })}
+        <Box
+          className="daoMultisigCreate"
+          onClick={() => multisigPage.create()}
+        >
+          <Typography className="daoMultisigCreateText">
+            Создать мультикошелек
+          </Typography>
         </Box>
-      )}
+      </Box>
+
+      <Box className="multisigFooter">
+        <Button variant="outlined" onClick={() => multisigPage.import()}>
+          Импортировать
+        </Button>
+      </Box>
     </Box>
   );
 }
