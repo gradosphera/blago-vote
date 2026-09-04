@@ -34,23 +34,26 @@ const useIsBeta = () => {
 // Перенаправление из Telegram Mini App на страницу предложения, если переход
 // открыт кнопкой бота («Открыть в приложении») — в start_param передан адрес.
 // Компонент находиТСЯ ВНУТРИ Router, поэтому useNavigate() гарантированно
-// работает. isTelegram()/getStartParam() читаются на момент вызова (SDK
-// подставляется асинхронно), поэтому повторяем попытки с паузой.
+// работает. isTelegram()/getStartParam() читаются на момент вызова: SDK Telegram
+// подставляется/инъектируется асинхронно, а при запуске из url-кнопки в канале
+// данные могут появиться не сразу. Поэтому НЕ выходим заранее, если isTelegram()
+// ещё ложен, а проверяем оба условия внутри цикла с повторными попытками.
 function TelegramStartParamRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isTelegram()) return;
     let cancelled = false;
     let attempts = 0;
-    const MAX_ATTEMPTS = 30;
+    const MAX_ATTEMPTS = 40;
 
     const tryRedirect = () => {
       if (cancelled) return;
-      const param = getStartParam();
-      if (param) {
-        navigate(`/proposal/${param}`, { replace: true });
-        return;
+      if (isTelegram()) {
+        const param = getStartParam();
+        if (param) {
+          navigate(`/proposal/${param}`, { replace: true });
+          return;
+        }
       }
       if (attempts < MAX_ATTEMPTS) {
         attempts += 1;

@@ -58,15 +58,54 @@ export const initTelegram = (): void => {
     }
 };
 
+// Извлекает start_param (или другой ключ) из «сырой» строки initData:
+// "query_id=...&user=...&start_param=<VAL>&auth_date=..." (может быть URL-encoded).
+function parseInitDataParam(initData: string | undefined, key: string): string | undefined {
+    if (!initData) return undefined;
+    try {
+        const params = new URLSearchParams(initData);
+        const val = params.get(key);
+        return val && val.length ? val : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+// Достаёт сырую строку initData из URL-хэша Mini App: "#tgWebAppData=<urlencoded>".
+// Это самый ранний и надёжный источник — он не зависит от момента инъекции SDK.
+function getInitDataFromHash(): string | undefined {
+    try {
+        const hash = window.location.hash || "";
+        if (!hash.includes("tgWebAppData=")) return undefined;
+        const raw = hash.split("tgWebAppData=")[1] || "";
+        return decodeURIComponent(raw);
+    } catch {
+        return undefined;
+    }
+}
+
 // Параметр "startapp" из глубокой ссылки на Mini App:
-// https://t.me/<бот>/vote?startapp=<VAL> → initDataUnsafe.start_param === <VAL>.
+// https://t.me/<бот>/vote?startapp=<VAL> → start_param === <VAL>.
 // Используется ботом для открытия Mini App сразу на странице предложения
 // (значение = адрес предложения, см. bot/bot.js webAppProposalLink).
+//
+// Ищем в нескольких источниках, чтобы покрыть разные сценарии запуска
+// (url-кнопка в канале/группе/личном чате, прямая ссылка, неровная инъекция SDK):
+//   1) window.Telegram.WebApp.initDataUnsafe.start_param
+//   2) initData самого SDK
+//   3) initData из URL-хэша tgWebAppData (не зависит от SDK).
 export const getStartParam = (): string | undefined => {
     try {
         const wa = getWebApp();
         const unsafe = (wa?.initDataUnsafe as { start_param?: string } | undefined) ?? {};
-        return typeof unsafe.start_param === "string" && unsafe.start_param ? unsafe.start_param : undefined;
+        if (typeof unsafe.start_param === "string" && unsafe.start_param) {
+            return unsafe.start_param;
+        }
+        const sdkInitData = parseInitDataParam(wa?.initData, "start_param");
+        if (sdkInitData) return sdkInitData;
+        const hashInitData = parseInitDataParam(getInitDataFromHash(), "start_param");
+        if (hashInitData) return hashInitData;
+        return undefined;
     } catch {
         return undefined;
     }
