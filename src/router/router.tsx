@@ -12,6 +12,7 @@ import {
   Dao,
   DaoAbout,
   DaosPage,
+  ManageDaosPage,
   EditProposal,
   Proposal,
   ProposalDisplay,
@@ -62,6 +63,15 @@ export const useRouter = () => {
               element: (
                 <Suspense fallback={<DaosPageFallback />}>
                   <DaosPage />
+                </Suspense>
+              ),
+            },
+            {
+              path: routes.manage,
+              errorElement: <RouteError />,
+              element: (
+                <Suspense fallback={<DaosPageFallback />}>
+                  <ManageDaosPage />
                 </Suspense>
               ),
             },

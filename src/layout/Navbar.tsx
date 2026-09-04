@@ -11,8 +11,8 @@ import { StyledFlexRow, StyledGrid } from "styles";
 import { useState } from "react";
 import { useAppNavigation, appNavigation } from "router/navigation";
 import { useAppSettings } from "hooks/hooks";
-import { Link, useLocation } from "react-router-dom";
 import { APP_NAME, LANGUAGES } from "config";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { BsGlobeAmericas } from "react-icons/bs";
 import _ from "lodash";
@@ -68,8 +68,7 @@ const StyledMultisigTab = styled(Link, {
     : "2px solid transparent",
   borderRadius: 0,
   [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
-    fontSize: 12,
-    padding: "8px 10px",
+    display: "none",
   },
 }));
 
@@ -85,9 +84,20 @@ const ThemeToggle = () => {
 };
 
 const StyledThemeToggle = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.mode === "dark" ? theme.palette.primary.main : "black",
+  color: theme.palette.mode === "dark" ? "#ffd54f" : "#1e2337",
+  border: `1px solid ${getBorderColor(theme.palette.mode)}`,
+  background:
+    theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.08)"
+      : "rgba(0,0,0,0.04)",
+  width: 40,
+  height: 40,
+  svg: { width: 20, height: 20 },
   [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
+    width: 36,
+    height: 36,
     padding: 3,
+    svg: { width: 18, height: 18 },
   },
 }));
 

@@ -198,8 +198,6 @@ interface SettingsStore {
   toggleThemeMode: () => void;
   beta: boolean;
   setBeta: (beta: boolean) => void;
-  sidebarHidden: boolean;
-  toggleSidebar: () => void;
 }
 
 export const useSettingsStore = create(
@@ -207,8 +205,6 @@ export const useSettingsStore = create(
     (set, get) => ({
       beta: false,
       setBeta: (beta) => set({ beta }),
-      sidebarHidden: false,
-      toggleSidebar: () => set((state) => ({ sidebarHidden: !state.sidebarHidden })),
       themeMode: undefined,
       setThemeMode: (themeMode) => set({ themeMode }),
       toggleThemeMode: () => {

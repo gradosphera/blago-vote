@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 
 export const appNavigation = {
   spaces: routes.spaces,
+  daosPage: {
+    root: () => routes.spaces,
+  },
+  managePage: {
+    root: () => routes.manage,
+  },
   daoPage: {
     root: (daoId: string) => routes.space.replace(":daoId", daoId),
     about: (daoId: string) => `${routes.spaceAbout.replace(":daoId", daoId)}`,

@@ -2,6 +2,7 @@ import _ from "lodash";
 
 export const routes = {
   spaces: "/",
+  manage: "/manage",
   createSpace: "/setup",
   // short proposal routes (preferred)
   proposal: "/proposal/:proposalId",

@@ -11,11 +11,11 @@ import { Toolbar } from "./Toolbar";
 import { ReactNode, useEffect } from "react";
 import { Footer } from "./Footer";
 import { Navbar } from "./Navbar";
+import { MobileNav } from "./MobileNav";
 import { MOBILE_WIDTH, TOOLBAR_WIDTH } from "consts";
 import { useAppQueryParams, useAppSettings } from "hooks/hooks";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { LatestBlock } from "components";
-import { useSettingsStore } from "store";
 import { getStartParam, isTelegram } from "multisig/utils/telegram";
 
 const useIsBeta = () => {
@@ -72,7 +72,6 @@ function TelegramStartParamRedirect() {
 
 function Layout({ children }: { children?: ReactNode }) {
   useIsBeta();
-  const sidebarHidden = useSettingsStore((s) => s.sidebarHidden);
 
   return (
     <>
@@ -83,7 +82,7 @@ function Layout({ children }: { children?: ReactNode }) {
           <ErrorBoundary
             fallbackRender={(props) => <ErrorFallback {...props} />}
           >
-            <StyledContent toolbarOffset={!sidebarHidden}>
+            <StyledContent>
               {children}
               <Outlet />
               <Footer />
@@ -92,6 +91,7 @@ function Layout({ children }: { children?: ReactNode }) {
         </StyledContainer>
       </Fade>
       <TelegramStartParamRedirect />
+      <MobileNav />
       <ScrollTop />
       {/* <LatestBlock /> */}
       <Toaster
@@ -112,16 +112,17 @@ const Wrapped = ({ children }: { children?: ReactNode }) => {
   );
 };
 
-const StyledContent = styled(StyledGrid, {
-  shouldForwardProp: (prop) => prop !== "toolbarOffset",
-})<{ toolbarOffset?: boolean }>(({ toolbarOffset }) => ({
+const StyledContent = styled(StyledGrid)({
   paddingTop: 100,
-  paddingBottom: toolbarOffset ? TOOLBAR_WIDTH + 24 : 24,
+  paddingBottom: 24,
   flex: 1,
+  paddingLeft: TOOLBAR_WIDTH,
   [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
     paddingTop: 80,
+    paddingLeft: 0,
+    paddingBottom: TOOLBAR_WIDTH + 24,
   },
-}));
+});
 
 const StyledContainer = styled(StyledFlexColumn)({
   minHeight: "100vh",

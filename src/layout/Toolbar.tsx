@@ -2,88 +2,78 @@ import { Box, styled } from "@mui/material";
 import { useTonAddress } from "@tonconnect/ui-react";
 import { AppTooltip, Button, Img } from "components";
 import { DevParametersModal } from "components/DevParameters";
-import { TOOLBAR_WIDTH } from "consts";
+import { MOBILE_WIDTH, TOOLBAR_WIDTH } from "consts";
 import { useRole } from "hooks/hooks";
 import { useDaosQuery } from "query/getters";
 import { AiOutlinePlus } from "react-icons/ai";
 import { Link, useParams } from "react-router-dom";
-import { useSettingsStore } from "store";
 import { appNavigation, useAppNavigation } from "router/navigation";
 import { getBorderColor } from "theme";
 import { parseLanguage } from "utils";
 
-
+// Левая боковая панель с ДАО пользователя — только для десктопа.
+// Постоянно открыта, кнопки скрытия/раскрытия нет (см. ScrollTop).
 export function Toolbar() {
-  const sidebarHidden = useSettingsStore((s) => s.sidebarHidden);
   const { createSpace } = useAppNavigation();
 
   return (
-    <StyledToolbar expanded={!sidebarHidden}>
-      {!sidebarHidden && (
-        <StyledToolbarContent>
-          <StyledTopArea>
-            <DevParametersModal />
-            <StyledCreateArea>
-              <AppTooltip text="Создать новое ДАО" placement="top">
-                <StyledButton onClick={createSpace.root} variant="transparent">
-                  <AiOutlinePlus />
-                </StyledButton>
-              </AppTooltip>
-            </StyledCreateArea>
-          </StyledTopArea>
-          <UserDaos />
-        </StyledToolbarContent>
-      )}
+    <StyledToolbar>
+      <StyledToolbarContent>
+        <StyledTopArea>
+          <DevParametersModal />
+          <StyledCreateArea>
+            <AppTooltip text="Создать новое ДАО" placement="right">
+              <StyledButton onClick={createSpace.root} variant="transparent">
+                <AiOutlinePlus />
+              </StyledButton>
+            </AppTooltip>
+          </StyledCreateArea>
+        </StyledTopArea>
+        <UserDaos />
+      </StyledToolbarContent>
     </StyledToolbar>
   );
 }
 
 const StyledCreateArea = styled(Box)({
   display: "flex",
-  flexDirection: "row",
+  flexDirection: "column",
   alignItems: "center",
 });
 
 const StyledTopArea = styled(Box)({
   display: "flex",
-  flexDirection: "row",
+  flexDirection: "column",
   alignItems: "center",
-  gap: 8,
-  paddingLeft: 8,
-  height: "100%",
-  marginRight: 16,
+  gap: 12,
+  paddingTop: 12,
 });
 
-const StyledToolbar = styled(Box, {
-  shouldForwardProp: (prop) => prop !== "expanded",
-})<{ expanded: boolean }>(({ theme, expanded }) => ({
-  height: expanded ? TOOLBAR_WIDTH : 0,
-  width: "100%",
+const StyledToolbar = styled(Box)(({ theme }) => ({
+  width: TOOLBAR_WIDTH,
   background: theme.palette.background.paper,
   position: "fixed",
   left: 0,
+  top: 70,
   bottom: 0,
-  transition: "height 0.2s",
-  borderTop: expanded
-    ? `0.5px solid ${getBorderColor(theme.palette.mode)}`
-    : "none",
-  boxShadow: expanded
-    ? theme.palette.mode === "dark"
-      ? "0 -4px 16px rgba(0,0,0,0.35)"
-      : "0 -4px 16px rgba(0,0,0,0.08)"
-    : "none",
-  zIndex: 30,
-  overflow: "hidden",
+  borderRight: `0.5px solid ${getBorderColor(theme.palette.mode)}`,
+  zIndex: 25,
+  overflowY: "auto",
+  overflowX: "hidden",
+  display: "flex",
+  [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
+    display: "none",
+  },
 }));
 
 const StyledToolbarContent = styled(Box)({
   height: "100%",
-  gap: 0,
-  minHeight: TOOLBAR_WIDTH,
+  minWidth: TOOLBAR_WIDTH,
   display: "flex",
-  flexDirection: "row",
+  flexDirection: "column",
   alignItems: "center",
-  padding: "0 12px",
+  gap: 16,
+  padding: "0 10px 16px",
 });
 
 const StyledButton = styled(Button)({
@@ -126,7 +116,7 @@ const UserDaos = () => {
               >
                 <AppTooltip
                   text={parseLanguage(dao.daoMetadata.metadataArgs.name)}
-                  placement="top"
+                  placement="right"
                 >
                   <StyledDaoImg src={dao.daoMetadata.metadataArgs.avatar} />
                 </AppTooltip>
@@ -142,8 +132,8 @@ const UserDaos = () => {
 const StyledLink = styled(Link)<{ selected: number }>(({ selected, theme }) => {
   const shadow =
     theme.palette.mode === "light"
-      ? "0px -1px 24px 4px rgba(0,136,204,1)"
-      : "0px -1px 15px 4px rgba(255,255,255,0.2)";
+      ? "0px 0px 12px 3px rgba(0,136,204,1)"
+      : "0px 0px 12px 3px rgba(255,255,255,0.25)";
   return {
     display: "flex",
     flexDirection: "column",
@@ -152,6 +142,7 @@ const StyledLink = styled(Link)<{ selected: number }>(({ selected, theme }) => {
     transition: "0.2s all",
     boxShadow: selected === 1 ? shadow : "unset",
     borderRadius: "50%",
+    border: selected === 1 ? `2px solid ${theme.palette.primary.main}` : "none",
   };
 });
 
@@ -163,11 +154,9 @@ const StyledDaoImg = styled(Img)({
 
 const StyledUserDaos = styled(Box)({
   flex: 1,
-  gap: 20,
-  overflow: "auto",
-  paddingRight: 20,
-  justifyContent: "flex-start",
+  gap: 16,
+  overflowY: "auto",
   display: "flex",
-  flexDirection: "row",
+  flexDirection: "column",
   alignItems: "center",
 });
