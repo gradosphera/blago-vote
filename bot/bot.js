@@ -41,6 +41,29 @@ function getProposalStatus(metadata) {
   return Status.CLOSED;
 }
 
+// Вехи уведомлений, которые нужно отправить для предложения: started (начало),
+// mid (середина), closed (окончание). При начальном сидинге (при первом старте
+// бота) помечаем уже наступившие/прошедшие вехи как отправленные, чтобы НЕ
+// публиковать ретроактивно старые голосования (для новых голосований вехи
+// будут срабатывать по ходу: https://... pollProposals).
+function buildSeedMilestones(metadata) {
+  const now = Date.now();
+  const start = Number(metadata?.proposalStartTime) * 1000;
+  const end = Number(metadata?.proposalEndTime) * 1000;
+  const mid = start + (end - start) / 2;
+  const status = getProposalStatus(metadata);
+  const m = {};
+  if (status === Status.ACTIVE) {
+    m.started = now;
+    if (now >= mid) m.mid = now;
+  } else if (status === Status.CLOSED) {
+    m.started = now;
+    m.mid = now;
+    m.closed = now;
+  }
+  return m;
+}
+
 function parseLang(json, lang = "ru") {
   if (!json) return "";
   try {
@@ -459,6 +482,7 @@ function buildStartMessage(daoName, proposal, addr) {
     ``,
     `<b>${daoName || "—"}</b>`,
     `<b>Предложение:</b> <a href="${proposalLink(addr)}">${title || shortAddr(addr)}</a>`,
+    `<b>Статус:</b> 🗳 Начато голосование`,
   ];
 
   if (description) lines.push(description);
@@ -479,6 +503,30 @@ function buildStartMessage(daoName, proposal, addr) {
     ``,
     `<a href="${tonviewerLink(addr)}">🔍 Проводник</a>`,
   );
+
+  return lines.join("\n");
+}
+
+// Промежуточное сообщение «Голосование продолжается», публикуется в середине
+// периода между началом и окончанием голосования (см. pollProposals → mid).
+function buildMidMessage(daoName, proposal, addr) {
+  const meta = proposal.metadata;
+  const title = parseLang(meta?.title);
+  const startTime = formatDate(meta?.proposalStartTime);
+  const endTime = formatDate(meta?.proposalEndTime);
+
+  let lines = [
+    `<b>🗳 Голосование продолжается</b>`,
+    ``,
+    `<b>${daoName || "—"}</b>`,
+    `<b>Предложение:</b> <a href="${proposalLink(addr)}">${title || shortAddr(addr)}</a>`,
+    `<b>Статус:</b> 📣 Голосование продолжается`,
+    ``,
+    `<b>Начало:</b> ${startTime}`,
+    `<b>Окончание:</b> ${endTime}`,
+    ``,
+    `<a href="${proposalLink(addr)}">🗳 Проголосовать</a>`,
+  ];
 
   return lines.join("\n");
 }
@@ -504,10 +552,17 @@ function buildEndMessage(daoName, proposal, addr) {
     ``,
     `<b>${daoName || "—"}</b>`,
     `<b>Предложение:</b> <a href="${proposalLink(addr)}">${title || shortAddr(addr)}</a>`,
+    `<b>Статус:</b> ⏰ Голосование завершено`,
   ];
 
   if (description) lines.push(description);
   if (leader) lines.push(`<b>Ведущий/руководитель:</b> ${formatLeader(leader)}`);
+
+  lines.push(
+    ``,
+    `<b>Начало:</b> ${formatDate(meta?.proposalStartTime)}`,
+    `<b>Окончание:</b> ${formatDate(meta?.proposalEndTime)}`,
+  );
 
   if (isQuorumPassed) {
     lines.push(`<b>Кворум 2/3 пройден ✅</b>`);
@@ -558,40 +613,56 @@ async function pollProposals(state) {
       const proposal = await fetchProposal(proposalAddr);
       if (!proposal?.metadata) continue;
 
-      const currentStatus = getProposalStatus(proposal.metadata);
+      const meta = proposal.metadata;
+      const currentStatus = getProposalStatus(meta);
       if (!currentStatus) continue;
 
-      const prevStatus = state.proposals[proposalAddr]?.status;
+      const rec = (state.proposals[proposalAddr] =
+        state.proposals[proposalAddr] || {});
+      const prevStatus = rec.status;
+      const milestones = rec.milestones || (rec.milestones = {});
 
-      if (prevStatus === currentStatus) continue;
+      const now = Date.now();
+      const startSec = Number(meta.proposalStartTime);
+      const endSec = Number(meta.proposalEndTime);
+      const startMs = startSec * 1000;
+      const endMs = endSec * 1000;
+      // Середина голосования — момент публикации «Голосование продолжается».
+      const midMs = startMs + (endMs - startMs) / 2;
 
-      if (prevStatus && prevStatus !== currentStatus) {
-        if (currentStatus === Status.ACTIVE) {
-          const text = buildStartMessage(daoName, proposal, proposalAddr);
-          if (await sendToAll(text, proposalAddr, daoName)) {
-            notificationsSent++;
-            log(`[START] ${proposalAddr} (${daoName})`);
-          }
-        } else if (currentStatus === Status.CLOSED) {
-          const text = buildEndMessage(daoName, proposal, proposalAddr);
-          if (await sendToAll(text, proposalAddr, daoName)) {
-            notificationsSent++;
-            log(`[END] ${proposalAddr} (${daoName})`);
-          }
-        }
-      } else if (!prevStatus && currentStatus === Status.ACTIVE) {
+      // 1) «Начато голосование» — сразу после начала голосования.
+      if (currentStatus === Status.ACTIVE && prevStatus !== Status.ACTIVE && !milestones.started) {
         const text = buildStartMessage(daoName, proposal, proposalAddr);
         if (await sendToAll(text, proposalAddr, daoName)) {
+          milestones.started = now;
           notificationsSent++;
-          log(`[ACTIVE] ${proposalAddr} (${daoName})`);
+          log(`[START] ${proposalAddr} (${daoName})`);
         }
       }
 
-      state.proposals[proposalAddr] = {
-        status: currentStatus,
-        daoName,
-        lastCheck: Date.now(),
-      };
+      // 2) «Голосование продолжается» — в середине периода между началом и окончанием.
+      if (currentStatus === Status.ACTIVE && now >= midMs && !milestones.mid) {
+        const text = buildMidMessage(daoName, proposal, proposalAddr);
+        if (await sendToAll(text, proposalAddr, daoName)) {
+          milestones.mid = now;
+          notificationsSent++;
+          log(`[MID] ${proposalAddr} (${daoName})`);
+        }
+      }
+
+      // 3) «Голосование завершено» — после окончания голосования.
+      if (currentStatus === Status.CLOSED && prevStatus !== Status.CLOSED && !milestones.closed) {
+        const text = buildEndMessage(daoName, proposal, proposalAddr);
+        if (await sendToAll(text, proposalAddr, daoName)) {
+          milestones.closed = now;
+          notificationsSent++;
+          log(`[END] ${proposalAddr} (${daoName})`);
+        }
+      }
+
+      rec.status = currentStatus;
+      rec.daoName = daoName;
+      rec.lastCheck = Date.now();
     }
   }
 
@@ -654,6 +725,7 @@ async function main() {
           status,
           daoName,
           lastCheck: Date.now(),
+          milestones: buildSeedMilestones(proposal.metadata),
         };
         seeded++;
       }
