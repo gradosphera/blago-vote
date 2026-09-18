@@ -1169,6 +1169,8 @@
       }
     ],
     "platforms": [
+      "ios",
+      "android",
       "chrome",
       "firefox",
       "safari",
