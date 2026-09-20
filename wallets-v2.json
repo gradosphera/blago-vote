@@ -1160,7 +1160,7 @@
     "name": "Gradosphera Wallet",
     "image": "https://gradosphera-wallet.vercel.app/tonconnect-icon.png",
     "about_url": "https://gradosphera-wallet.vercel.app",
-    "universal_url": "https://gradosphera-wallet.vercel.app/ton-connect",
+    "universal_url": "https://t.me/wallet_gradosphera_bot/open",
     "deepLink": "gradosphera-tc://",
     "bridge": [
       {
