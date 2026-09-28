@@ -1,5 +1,48 @@
 [
   {
+    "app_name": "gradospherawallet",
+    "name": "Gradosphera Wallet",
+    "image": "https://gradosphera-wallet.vercel.app/tonconnect-icon.png",
+    "about_url": "https://gradosphera-wallet.vercel.app",
+    "universal_url": "https://t.me/wallet_gradosphera_bot/open",
+    "deepLink": "gradosphera-tc://",
+    "bridge": [
+      {
+        "type": "js",
+        "key": "mytonwallet"
+      },
+      {
+        "type": "sse",
+        "url": "https://gradosphera-wallet.vercel.app/bridge/"
+      }
+    ],
+    "platforms": [
+      "ios",
+      "android",
+      "chrome",
+      "firefox",
+      "safari",
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "features": [
+      {
+        "name": "SendTransaction",
+        "maxMessages": 4,
+        "extraCurrencySupported": false
+      },
+      {
+        "name": "SignData",
+        "types": [
+          "text",
+          "binary",
+          "cell"
+        ]
+      }
+    ]
+  },
+  {
     "app_name": "telegram-wallet",
     "name": "Wallet",
     "image": "https://wallet.tg/images/logo-288.png",
@@ -1152,49 +1195,6 @@
         "name": "SendTransaction",
         "maxMessages": 255,
         "extraCurrencySupported": false
-      }
-    ]
-  },
-  {
-    "app_name": "gradospherawallet",
-    "name": "Gradosphera Wallet",
-    "image": "https://gradosphera-wallet.vercel.app/tonconnect-icon.png",
-    "about_url": "https://gradosphera-wallet.vercel.app",
-    "universal_url": "https://t.me/wallet_gradosphera_bot/open",
-    "deepLink": "gradosphera-tc://",
-    "bridge": [
-      {
-        "type": "js",
-        "key": "mytonwallet"
-      },
-      {
-        "type": "sse",
-        "url": "https://gradosphera-wallet.vercel.app/bridge/"
-      }
-    ],
-    "platforms": [
-      "ios",
-      "android",
-      "chrome",
-      "firefox",
-      "safari",
-      "windows",
-      "macos",
-      "linux"
-    ],
-    "features": [
-      {
-        "name": "SendTransaction",
-        "maxMessages": 4,
-        "extraCurrencySupported": false
-      },
-      {
-        "name": "SignData",
-        "types": [
-          "text",
-          "binary",
-          "cell"
-        ]
       }
     ]
   }
