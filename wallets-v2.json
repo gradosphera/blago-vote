@@ -1169,7 +1169,7 @@
       },
       {
         "type": "sse",
-        "url": "https://gradosphera-tonconnect-bridge.dao-f7d.workers.dev/bridge"
+        "url": "https://gradosphera-wallet.vercel.app/bridge/"
       }
     ],
     "platforms": [
