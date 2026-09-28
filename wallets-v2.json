@@ -1164,8 +1164,12 @@
     "deepLink": "gradosphera-tc://",
     "bridge": [
       {
+        "type": "js",
+        "key": "mytonwallet"
+      },
+      {
         "type": "sse",
-        "url": "https://gradosphera-wallet.vercel.app/bridge"
+        "url": "https://gradosphera-tonconnect-bridge.dao-f7d.workers.dev/bridge"
       }
     ],
     "platforms": [
