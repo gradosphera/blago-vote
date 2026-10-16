@@ -1,5 +1,5 @@
 {
   "url": "https://blago-vote.vercel.app/",
   "name": "Голос",
-  "iconUrl": "https://raw.githubusercontent.com/gradosphera/blago-vote/refs/heads/main/public/logo.png"
+  "iconUrl": "https://cdn.jsdelivr.net/gh/gradosphera/blago-vote@main/public/logo.png"
 }
