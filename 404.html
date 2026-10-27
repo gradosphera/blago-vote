@@ -67,12 +67,12 @@
     }
   </style>
   <title>Голос</title>
-  <script type="module" crossorigin src="/assets/index-7b1a2d16.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/vendor-react-5b7b4589.js">
+  <script type="module" crossorigin src="/assets/index-ba1ab91d.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-react-32eec37c.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-dates-a9aaa855.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-mui-85cf3bee.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-utils-a9fe5f0d.js">
-  <link rel="modulepreload" crossorigin href="/assets/vendor-ton-dc213e5b.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-mui-d330aff8.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-utils-4faece1d.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-ton-84767141.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-tma-e9a0ffd7.js">
 </head>
 
@@ -101,13 +101,14 @@
   
   
 
-  <!-- Telegram WebApp SDK: грузится АСИНХРОННО (async), чтобы telegram.org/js/
-       telegram-web-app.js никогда не блокировал отрисовку и не вызывал
-       долгое ожидание/err_timed_out при медленном/недоступном CDN.
-       window.Telegram.WebApp используется, когда он успеет загрузиться;
-       для start_param есть fallback из URL-хэша (tgWebAppData) в telegram.ts,
-       поэтому редирект работает и без этого скрипта. -->
-  <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+  <!-- Telegram WebApp SDK: подключён из локальной копии (public/telegram-web-app.js),
+       чтобы не зависеть от доступности telegram.org (в ряде сетей CDN заблокирован)
+       и не вызывать сетевых ошибок/долгого ожидания. Обновляется из пакета
+       @twa-dev/sdk (dist/telegram-web-apps.js). Грузится АСИНХРОННО, чтобы не
+       блокировать отрисовку; window.Telegram.WebApp используется, когда
+       скрипт успеет загрузиться, для start_param есть fallback из URL-хэша
+       (tgWebAppData) в telegram.ts. -->
+  <script src="./telegram-web-app.js" async></script>
 </body>
 
 </html>
