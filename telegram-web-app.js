@@ -3099,4 +3099,3 @@
     WebView.postEvent('web_app_request_safe_area');
     WebView.postEvent('web_app_request_content_safe_area');
 })();
-//# sourceMappingURL=telegram-web-apps.js.map
