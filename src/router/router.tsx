@@ -1,7 +1,7 @@
 import Layout from "layout/Layout";
 import { Box, Button, Typography } from "@mui/material";
 import _ from "lodash";
-import { routes } from "consts";
+import { routes, toAbs } from "consts";
 import { createBrowserRouter, Navigate, useRouteError, Link as RouterLink } from "react-router-dom";
 import { lazy, Suspense, useMemo } from "react";
 import { useDevFeatures } from "hooks/hooks";
@@ -29,8 +29,7 @@ function RouteError() {
       </Typography>
       <Button variant="contained">
         <RouterLink
-          to={routes.spaces}
-          relative="path"
+          to={toAbs(routes.spaces)}
           style={{ color: "white", textDecoration: "none" }}
         >
           На главную
@@ -51,218 +50,215 @@ const ImportMultisig = lazy(() => import("pages/multisig/ImportMultisig"));
 
 export const useRouter = () => {
   const devFeatures = useDevFeatures();
-  // Подпуть для деплоя на GitVerse (например /blago-vote/).
-  // import.meta.env.BASE_URL устанавливается Vite из vite.config.base.
-  const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
   return useMemo(
     () =>
       createBrowserRouter(
         [
           {
-            path: base || "/",
+            path: "/",
             element: <Layout />,
-          children: [
-            {
-              path: routes.spaces,
-              element: (
-                <Suspense fallback={<DaosPageFallback />}>
-                  <DaosPage />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.manage,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<DaosPageFallback />}>
-                  <ManageDaosPage />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.createSpace,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <CreateDao />
-                </Suspense>
-              ),
-            },
+            children: [
+              {
+                path: toAbs(routes.spaces),
+                element: (
+                  <Suspense fallback={<DaosPageFallback />}>
+                    <DaosPage />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.manage),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<DaosPageFallback />}>
+                    <ManageDaosPage />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.createSpace),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <CreateDao />
+                  </Suspense>
+                ),
+              },
 
-            {
-              path: routes.space,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<DaoPageFallback />}>
-                  <Dao />
-                </Suspense>
-              ),
-              children: [
-                {
-                  path: routes.createProposal,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <CreateProposal />
-                    </Suspense>
-                  ),
-                },
-                {
-                  index: true,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <ProposalsList />
-                    </Suspense>
-                  ),
-                },
-                {
-                  path: routes.spaceSettings,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <DaoSettings />
-                    </Suspense>
-                  ),
-                },
-                {
-                  path: routes.spaceAbout,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <DaoAbout />
-                    </Suspense>
-                  ),
-                },
-              ],
-            },
-            {
-              path: routes.proposal,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <Proposal />
-                </Suspense>
-              ),
-              children: [
-                {
-                  path: routes.proposal,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <ProposalDisplay />
-                    </Suspense>
-                  ),
-                },
-                {
-                  path: routes.editProposal,
-                  errorElement: <RouteError />,
-                  element: devFeatures ? (
-                    <Suspense fallback={<PageFallback />}>
-                      <EditProposal />
-                    </Suspense>
-                  ) : (
-                    <Navigate to={routes.proposal} relative="path" />
-                  ),
-                },
-              ],
-            },
-            // multisig (Мультикошелек)
-            {
-              path: routes.multisig,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <MultisigPage />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.multisigImport,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <ImportMultisig />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.multisigCreate,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <CreateMultisig />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.multisigAddress,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <MultisigView />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.multisigNewOrder,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <NewOrder />
-                </Suspense>
-              ),
-            },
-            {
-              path: routes.multisigOrder,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <OrderView />
-                </Suspense>
-              ),
-            },
+              {
+                path: toAbs(routes.space),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<DaoPageFallback />}>
+                    <Dao />
+                  </Suspense>
+                ),
+                children: [
+                  {
+                    path: toAbs(routes.createProposal),
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <CreateProposal />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    index: true,
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <ProposalsList />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: toAbs(routes.spaceSettings),
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <DaoSettings />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: toAbs(routes.spaceAbout),
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <DaoAbout />
+                      </Suspense>
+                    ),
+                  },
+                ],
+              },
+              {
+                path: toAbs(routes.proposal),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <Proposal />
+                  </Suspense>
+                ),
+                children: [
+                  {
+                    path: toAbs(routes.proposal),
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <ProposalDisplay />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: toAbs(routes.editProposal),
+                    errorElement: <RouteError />,
+                    element: devFeatures ? (
+                      <Suspense fallback={<PageFallback />}>
+                        <EditProposal />
+                      </Suspense>
+                    ) : (
+                      <Navigate to={toAbs(routes.proposal)} />
+                    ),
+                  },
+                ],
+              },
+              // multisig (Мультикошелек)
+              {
+                path: toAbs(routes.multisig),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <MultisigPage />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigImport),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <ImportMultisig />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigCreate),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <CreateMultisig />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigAddress),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <MultisigView />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigNewOrder),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <NewOrder />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigOrder),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <OrderView />
+                  </Suspense>
+                ),
+              },
 
-            // legacy proposal routes
-            {
-              path: routes.proposalLegacy,
-              errorElement: <RouteError />,
-              element: (
-                <Suspense fallback={<PageFallback />}>
-                  <Proposal />
-                </Suspense>
-              ),
-              children: [
-                {
-                  path: routes.proposalLegacy,
-                  errorElement: <RouteError />,
-                  element: (
-                    <Suspense fallback={<PageFallback />}>
-                      <ProposalDisplay />
-                    </Suspense>
-                  ),
-                },
-                {
-                  path: routes.editProposalLegacy,
-                  errorElement: <RouteError />,
-                  element: devFeatures ? (
-                    <Suspense fallback={<PageFallback />}>
-                      <EditProposal />
-                    </Suspense>
-                  ) : (
-                    <Navigate to={routes.proposal} relative="path" />
-                  ),
-                },
-              ],
-            },
-          ],
-          errorElement: (
-            <Suspense fallback={<PageFallback />}>
-              <BadRoute />
-            </Suspense>
-          ),
-        },
+              // legacy proposal routes
+              {
+                path: toAbs(routes.proposalLegacy),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <Proposal />
+                  </Suspense>
+                ),
+                children: [
+                  {
+                    path: toAbs(routes.proposalLegacy),
+                    errorElement: <RouteError />,
+                    element: (
+                      <Suspense fallback={<PageFallback />}>
+                        <ProposalDisplay />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: toAbs(routes.editProposalLegacy),
+                    errorElement: <RouteError />,
+                    element: devFeatures ? (
+                      <Suspense fallback={<PageFallback />}>
+                        <EditProposal />
+                      </Suspense>
+                    ) : (
+                      <Navigate to={toAbs(routes.proposal)} />
+                    ),
+                  },
+                ],
+              },
+            ],
+            errorElement: (
+              <Suspense fallback={<PageFallback />}>
+                <BadRoute />
+              </Suspense>
+            ),
+          },
         ],
       ),
     [devFeatures]

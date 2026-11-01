@@ -52,7 +52,7 @@ import { useDaoQuery, useProposalQuery } from "query/getters";
 
 export const useCurrentRoute = () => {
   const location = useLocation();
-  const route = matchRoutes(flatRoutes, location);
+  const route = matchRoutes(flatRoutes, location.pathname);
 
   return route ? route[0].route.path : undefined;
 };

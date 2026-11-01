@@ -27,7 +27,8 @@ import {
 
 export const DaoListItem = ({ dao }: { dao: Dao }) => {
   const [ref, { entry }] = useIntersectionObserver();
-  const isVisible = entry && entry.isIntersecting;
+  // entry === null при первой загрузке — считаем видимым, чтобы не показывать пустую страницу
+  const isVisible = entry == null || entry.isIntersecting;
   const { daoPage } = useAppNavigation();
   const metadataArgs = dao.daoMetadata?.metadataArgs;
   const walletAddress = useTonAddress();

@@ -1,12 +1,14 @@
 import _ from "lodash";
 
-const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+/** Получает базовый путь из окружения Vite */
+const getBase = () => (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
 /** Конвертирует относительный route в абсолютный путь для сравнений с pathname */
 export function toAbs(route: string): string {
-  if (route === "." || route === "") return BASE || "/";
-  if (route.startsWith(":") || route.startsWith("*")) return `${BASE}/${route}`;
-  return `${BASE}/${route}`;
+  const base = getBase();
+  if (route === "." || route === "") return base || "/";
+  if (route.startsWith(":") || route.startsWith("*")) return `${base}/${route}`;
+  return `${base}/${route}`;
 }
 
 export const routes = {

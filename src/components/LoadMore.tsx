@@ -20,7 +20,8 @@ function LoadMore({
   className?: string;
 }) {
   const [ref, { entry }] = useIntersectionObserver();
-  const isVisible = entry && entry.isIntersecting;
+  // entry === null при первой загрузке — считаем видимым
+  const isVisible = entry == null || entry.isIntersecting;
   const t = useCommonTranslations()
   useEffect(() => {
     if (isVisible) {

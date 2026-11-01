@@ -17,19 +17,6 @@ const isLocal =
   typeof window !== "undefined" &&
   /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
 
-// На доменах *.gitverse.site нет эндпоинта /api/tonconnect-manifest,
-// поэтому генерируем манифест на клиенте.
-const isGitVerseSite =
-  typeof window !== "undefined" &&
-  /\.gitverse\.site$/.test(window.location.hostname);
-
-// Надёжное кодирование UTF-8 строки в base64 для btoa().
-const toBase64 = (str: string) => {
-  const bytes = new TextEncoder().encode(str);
-  const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
-  return btoa(binary);
-};
-
 // URL обязан быть АБСОЛЮТНЫМ: SDK передаёт manifestUrl в ConnectRequest как
 // есть, без резолва, а кошелёк Telegram (и другие) получив относительную
 // ссылку, отвечает TONCONNECT_URL_MANIFEST_INVALID. origin дублируется в
@@ -39,17 +26,7 @@ export const manifestUrl =
   typeof window !== "undefined"
     ? isLocal
       ? `${FALLBACK_ORIGIN}/tonconnect-manifest.json`
-      : isGitVerseSite
-        ? (() => {
-            const origin = window.location.origin;
-            const manifest = JSON.stringify({
-              url: origin,
-              name: APP_NAME,
-              iconUrl: `${origin}/logo.png`,
-            });
-            return `data:application/json;base64,${toBase64(manifest)}`;
-          })()
-        : `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`
+      : `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`
     : `${MANIFEST_ENDPOINT}?origin=${encodeURIComponent(FALLBACK_ORIGIN)}`;
 
 export const DEFAULT_CLIENT_V2_ENDPOINT =

@@ -5,7 +5,11 @@ import { Logger, parseVotes } from "utils";
 import { API_RETRIES } from "config";
 import retry from "async-retry";
 
-const baseURL = "https://api.ton.vote";
+// Для локальной разработки используем относительный путь —
+// Vite проксирует запросы к https://api.ton.vote.
+// import.meta.env.DEV — правильное условие для Vite (process.env недоступен
+// в браузере, поэтому условие выше всегда false в dev-режиме).
+const baseURL = import.meta.env.DEV ? "" : "https://api.ton.vote";
 
 // индексёр может отвечать очень долго (минуты), поэтому каждый запрос
 // ограничен таймаутом, а повторы делает только async-retry ниже

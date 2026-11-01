@@ -71,7 +71,8 @@ const useHideProposal = (proposalAddress: string) => {
 export const Proposal = ({ proposalAddress }: { proposalAddress: string }) => {
   const { proposalPage } = useAppNavigation();
   const [ref, { entry }] = useIntersectionObserver();
-  const isVisible = entry && entry.isIntersecting;
+  // entry === null при первой загрузке — считаем видимым
+  const isVisible = entry == null || entry.isIntersecting;
 
   const proposalQuery = useProposalQuery(proposalAddress, {
     disabled: !isVisible,
