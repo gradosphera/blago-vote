@@ -27,3 +27,7 @@ deploy.config.json
 
 # Bot runtime state (не коммитим)
 bot/state.json
+
+# GigaCode
+.gigacode_vsc
+.gigacode_vsc/plans

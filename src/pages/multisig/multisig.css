@@ -657,6 +657,42 @@
   overflow: hidden;
 }
 
+/* Action card styles */
+.orderActionCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orderActionTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-color);
+  margin-bottom: 4px;
+}
+
+.orderActionField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .orderActionCard {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .orderActionTitle {
+    font-size: 16px;
+  }
+}
+
 /* Proposal action styling */
 .proposalAction {
   background: var(--bg-secondary);

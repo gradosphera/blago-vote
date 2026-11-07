@@ -37,6 +37,37 @@ import {
   VESTING_INTERNAL_TRANSFER,
 } from "./Constants";
 
+export interface OrderActionInfo {
+  type: "gram" | "jetton" | "nft" | "proposal" | "update_multisig";
+  actionName: string;
+  // For NFT Transfer
+  nftContract?: Address;
+  newOwner?: Address;
+  // For GRAM transfers
+  gramAmount?: string;
+  // For Jetton transfers
+  jettonAmount?: string;
+  jettonAddress?: Address;
+  toAddress?: Address;
+  // Common
+  comment?: string;
+  // For proposals
+  title?: string;
+  description?: string;
+  choices?: string[];
+  strategies?: string;
+  snapshotTime?: string;
+  startTime?: string;
+  endTime?: string;
+  quorum?: number;
+  hide?: boolean;
+  deployer?: Address;
+  // For update_multisig
+  newThreshold?: number;
+  newSigners?: Address[];
+  newProposers?: Address[];
+}
+
 export interface MultisigOrderInfo {
   address: AddressInfo;
   tonBalance: bigint;
@@ -47,7 +78,7 @@ export interface MultisigOrderInfo {
   threshold: number;
   signers: AddressInfo[];
   expiresAt: Date;
-  actions: string[];
+  actions: OrderActionInfo[];
   summary?: {
     gram: string;
     jetton?: {
@@ -212,13 +243,25 @@ export const checkMultisigOrder = async (
   const parseActionBody = async (
     cell: Cell,
   ): Promise<{
-    text: string;
+    comment?: string;
     jetton?: { amount: string; kind: "mint" | "transfer" | "burn" };
+    nftContract?: Address;
+    newOwner?: Address;
+    title?: string;
+    description?: string;
+    choices?: string[];
+    strategies?: string;
+    snapshotTime?: string;
+    startTime?: string;
+    endTime?: string;
+    quorum?: number;
+    hide?: boolean;
+    deployer?: Address;
   }> => {
     try {
       const slice = cell.beginParse();
       if (slice.remainingBits === 0 && slice.remainingRefs == 0) {
-        return { text: "Отправить GRAM с мультикошелька без комментария" };
+        return { comment: "" };
       }
     } catch (e) {}
 
@@ -228,7 +271,7 @@ export const checkMultisigOrder = async (
       if (op == 0) {
         const text = slice.loadStringTail();
         return {
-          text: `Отправить GRAM с мультикошелька с комментарием "${sanitizeHTML(text)}"`,
+          comment: sanitizeHTML(text),
         };
       }
     } catch (e) {}
@@ -241,9 +284,7 @@ export const checkMultisigOrder = async (
           parsed.internalMessage.forwardPayload.remainingRefs === 0,
         "Mint forward payload not supported",
       );
-      const toAddress = await formatAddressAndUrl(parsed.toAddress, isTestnet);
       return {
-        text: `Минт ${parsed.internalMessage.jettonAmount} жетонов (в единицах) на ${toAddress}; ${fromNano(parsed.tonAmount)} GRAM на газ`,
         jetton: {
           amount: parsed.internalMessage.jettonAmount.toString(),
           kind: "mint",
@@ -254,7 +295,7 @@ export const checkMultisigOrder = async (
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseTopUp(slice);
-      return { text: `Пополнение` };
+      return {};
     } catch (e) {}
 
     try {
@@ -264,21 +305,19 @@ export const checkMultisigOrder = async (
         parsed.newAdminAddress,
         isTestnet,
       );
-      return { text: `Сменить администратора на ${newAdminAddress}` };
+      return {};
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseClaimAdmin(slice);
-      return { text: `Принять управление` };
+      return {};
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseChangeContent(slice);
-      return {
-        text: `Изменить URL метаданных на "${sanitizeHTML(parsed.newMetadataUrl)}"`,
-      };
+      return {};
     } catch (e) {}
 
     try {
@@ -292,21 +331,17 @@ export const checkMultisigOrder = async (
         parsed.forwardPayload.remainingBits === 0 &&
         parsed.forwardPayload.remainingRefs === 0
       ) {
-        comment = "без комментария";
+        comment = "";
       } else if (parsed.forwardPayload.remainingBits >= 32) {
         const op = parsed.forwardPayload.loadUint(32);
         assert(op === 0, "Transfer arbitrary forward payload not supported");
-        comment =
-          'с комментарием "' +
-          sanitizeHTML(parsed.forwardPayload.loadStringTail()) +
-          '"';
+        comment = sanitizeHTML(parsed.forwardPayload.loadStringTail());
       } else {
         assert(false, "Transfer arbitrary forward payload not supported");
       }
 
-      const toAddress = await formatAddressAndUrl(parsed.toAddress, isTestnet);
       return {
-        text: `Перевод ${parsed.jettonAmount} жетонов (в единицах) с мультикошелька пользователю ${toAddress} ${comment};`,
+        comment,
         jetton: {
           amount: parsed.jettonAmount.toString(),
           kind: "transfer",
@@ -320,14 +355,9 @@ export const checkMultisigOrder = async (
         slice,
         JettonMinter.parseSetStatus,
       );
-      const userAddress = await formatAddressAndUrl(
-        parsed.toAddress,
-        isTestnet,
-      );
       const lockType = intToLockType(parsed.action.newStatus);
-      return {
-        text: `Блокировка кошелька жетонов пользователя ${userAddress}. Установить статус "${lockType}" - "${lockTypeToDescription(lockType)}"; ${fromNano(parsed.tonAmount)} GRAM на газ`,
-      };
+      void lockType;
+      return {};
     } catch (e) {}
 
     try {
@@ -343,16 +373,7 @@ export const checkMultisigOrder = async (
           parsed.action.forwardPayload.remainingRefs === 0,
         "Force transfer forward payload not supported",
       );
-      const fromAddress = await formatAddressAndUrl(
-        parsed.toAddress,
-        isTestnet,
-      );
-      const toAddress = await formatAddressAndUrl(
-        parsed.action.toAddress,
-        isTestnet,
-      );
       return {
-        text: `Принудительный перевод ${parsed.action.jettonAmount} жетонов (в единицах) от пользователя ${fromAddress} к ${toAddress}; ${fromNano(parsed.tonAmount)} GRAM за газ`,
         jetton: {
           amount: parsed.action.jettonAmount.toString(),
           kind: "transfer",
@@ -365,12 +386,7 @@ export const checkMultisigOrder = async (
       const parsed = JettonMinter.parseCallTo(slice, JettonMinter.parseBurn);
       if (parsed.action.customPayload)
         throw new Error("Burn custom payload not supported");
-      const userAddress = await formatAddressAndUrl(
-        parsed.toAddress,
-        isTestnet,
-      );
       return {
-        text: `Принудительное сжигание ${parsed.action.jettonAmount} жетонов (в единицах) у пользователя ${userAddress}; ${fromNano(parsed.tonAmount)} GRAM на газ`,
         jetton: {
           amount: parsed.action.jettonAmount.toString(),
           kind: "burn",
@@ -385,9 +401,9 @@ export const checkMultisigOrder = async (
       if (op === SINGLE_NOMINATOR_POOL_OP_WITHDRAW) {
         const queryId = slice.loadUint(64);
         const coins = slice.loadCoins();
-        return {
-          text: `Вывод ${fromNano(coins)} GRAM из пула единого номинатора.`,
-        };
+        void queryId;
+        void coins;
+        return {};
       }
     } catch (e) {}
 
@@ -398,14 +414,9 @@ export const checkMultisigOrder = async (
       if (op === SINGLE_NOMINATOR_POOL_OP_CHANGE_VALIDATOR_ADDRESS) {
         const queryId = slice.loadUint(64);
         const validatorAddress = slice.loadAddress();
-        const validatorAddressUrl = await formatAddressAndUrl(
-          validatorAddress,
-          isTestnet,
-        );
-
-        return {
-          text: `Сменить валидатора на ${validatorAddressUrl} в пуле единого номинатора.`,
-        };
+        void queryId;
+        void validatorAddress;
+        return {};
       }
     } catch (e) {}
 
@@ -423,16 +434,9 @@ export const checkMultisigOrder = async (
         const messageRelaxed = loadMessageRelaxed(msg.beginParse());
         const messageRelaxedInfo =
           messageRelaxed.info as CommonMessageInfoRelaxedInternal;
-        const messageBodyBoc = messageRelaxed.body.toBoc();
         const messageBody = messageRelaxed.body.beginParse();
 
-        let actionString = "Затем отправить из вестинга ";
-        const destAddress = await formatAddressAndUrl(
-          messageRelaxedInfo.dest,
-          isTestnet,
-        );
-        actionString += `${fromNano(messageRelaxedInfo.value.coins)} GRAM на ${destAddress}`;
-
+        let comment = "";
         if (
           messageBody.remainingBits === 0 &&
           messageBody.remainingRefs === 0
@@ -442,13 +446,10 @@ export const checkMultisigOrder = async (
           messageBody.remainingBits > 32 &&
           messageBody.loadUint(32) == 0
         ) {
-          actionString +=
-            ' с текстом "' + sanitizeHTML(messageBody.loadStringTail()) + '".';
-        } else {
-          actionString += ` с данными: "${messageBodyBoc.toString("base64")}". `;
+          comment = sanitizeHTML(messageBody.loadStringTail());
         }
 
-        return { text: actionString };
+        return { comment };
       }
     } catch (e) {
       console.error(e);
@@ -564,61 +565,78 @@ export const checkMultisigOrder = async (
           minute: "2-digit",
         });
 
-      const deployerUrl = await formatAddressAndUrl(
-        proposalDeployer,
-        isTestnet,
-      );
-
-      let actionString = `<div class="proposalAction">`;
-      actionString += `<div class="proposalActionTitle">${sanitizeHTML(title)}</div>`;
-      if (description) {
-        const descHtml = marked.parse(description) as string;
-        actionString += `<div class="proposalActionDesc">${descHtml}</div>`;
-      }
-      actionString += `<div class="proposalActionMeta">`;
-      if (choicesArray.length > 0) {
-        actionString += `<div class="proposalActionChoices">`;
-        actionString += `<div class="proposalActionLabel">Варианты голосования:</div>`;
-        choicesArray.forEach((choice) => {
-          actionString += `<div class="proposalActionChoice"><span class="proposalActionCheckbox"></span> ${sanitizeHTML(choice)}</div>`;
-        });
-        actionString += `</div>`;
-      }
-      if (strategiesText) {
-        actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Стратегии подсчёта голосов:</span> <span class="proposalActionValue">${strategiesText}</span></div>`;
-      }
       const quorumValue = parseInt(quorum, 10) || 0;
-      if (quorumValue > 0) {
-        actionString += `<div class="proposalActionQuorum">`;
-        actionString += `<div class="proposalActionLabel">Кворум:</div>`;
-        actionString += `<div class="proposalActionQuorumBar"><div class="proposalActionQuorumFill" style="width: ${Math.min(quorumValue, 100)}%"></div></div>`;
-        actionString += `<div class="proposalActionQuorumText">${quorumValue}%</div>`;
-        actionString += `</div>`;
-      }
-      actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Снимок балансов:</span> <span class="proposalActionValue">${fmtTime(proposalSnapshotTime)}</span></div>`;
-      actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Начало голосования:</span> <span class="proposalActionValue">${fmtTime(proposalStartTime)}</span></div>`;
-      actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Окончание голосования:</span> <span class="proposalActionValue">${fmtTime(proposalEndTime)}</span></div>`;
-      actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Скрытое:</span> <span class="proposalActionValue">${hide ? "да" : "нет"}</span></div>`;
-      actionString += `<div class="proposalActionMetaRow"><span class="proposalActionLabel">Деплоер предложений:</span> <span class="proposalActionValue">${deployerUrl}</span></div>`;
-      actionString += `</div></div>`;
 
-      return { text: actionString };
+      return {
+        title,
+        description,
+        choices: choicesArray,
+        strategies: strategiesText,
+        snapshotTime: fmtTime(proposalSnapshotTime),
+        startTime: fmtTime(proposalStartTime),
+        endTime: fmtTime(proposalEndTime),
+        quorum: quorumValue,
+        hide,
+        deployer: proposalDeployer,
+      };
     } catch (e) {}
 
-    return {
-      text: `<b><span class="error">ВНИМАНИЕ - Неизвестное действие! Эта заявка содержит произвольные действия! Опасно! Не подписывайте, если точно не знаете, что делаете!</span></b><br>Необработанные данные тела сообщения: "${cell.toBoc().toString("base64")}".`,
-    };
+    try {
+      const slice = cell.beginParse();
+      const op = slice.loadUint(32);
+      if (op === 0x5fcc3d14) {
+        // NFT Transfer (TEP-62)
+        const queryId = slice.loadUint(64);
+        void queryId;
+
+        // new_owner address (256-bit hash)
+        const newOwnerHashHex = slice.loadBits(256).toString();
+        const newOwnerHashBuf = Buffer.from(newOwnerHashHex, "hex");
+        const newOwnerAddr = new Address(0, newOwnerHashBuf);
+
+        // response_to address (256-bit hash)
+        const respHashHex = slice.loadBits(256).toString();
+        const respHashBuf = Buffer.from(respHashHex, "hex");
+        const respAddr = new Address(0, respHashBuf);
+        void respAddr;
+
+        let comment = "";
+        // Check for forward_amount (64 bits) if enough bits remain
+        if (slice.remainingBits >= 64) {
+          const forwardAmount = slice.loadUint(64);
+          void forwardAmount;
+          // forward_amount present, check for forward_payload
+          if (slice.remainingBits >= 32) {
+            const fpOp = slice.loadUint(32);
+            if (fpOp === 0) {
+              comment = sanitizeHTML(slice.loadStringTail());
+            }
+          }
+        } else if (slice.remainingBits >= 32) {
+          // No forward_amount, check payload directly
+          const fpOp = slice.loadUint(32);
+          if (fpOp === 0) {
+            comment = sanitizeHTML(slice.loadStringTail());
+          }
+        }
+
+        return {
+          newOwner: newOwnerAddr,
+          comment,
+        };
+      }
+    } catch (e) {}
+
+    return {};
   };
 
-  let parsedActions: string[] = [];
+  let parsedActions: OrderActionInfo[] = [];
   let summaryGram = "";
   let summaryJetton: { amount: string; kind: "mint" | "transfer" | "burn" } | undefined =
     undefined;
 
   const actionsKeys = actions.keys();
   for (let key of actionsKeys) {
-    let actionString = `<div class="label">Действие №${key}:</div>`;
-
     const action = actions.get(key);
     const slice = action!.beginParse();
     const actionOp = slice.loadUint(32);
@@ -626,7 +644,7 @@ export const checkMultisigOrder = async (
       // send message
       const sendMode = slice.loadUint(8);
 
-      let sendModeString = [];
+      let sendModeString: string[] = [];
       let allBalance = false;
 
       if (sendMode & 1) {
@@ -664,15 +682,34 @@ export const checkMultisigOrder = async (
         throw new Error("Заявка недействительна: форвард-комиссия больше 0");
       }
 
-      const destAddress = await formatAddressAndUrl(info.dest, isTestnet);
       const gramAmount = allBalance
         ? "ВЕСЬ БАЛАНС"
         : fromNano(info.value.coins);
-      actionString += `<div>Отправить ${gramAmount} GRAM на ${destAddress}</div>`;
+      
+      const actionInfo: OrderActionInfo = {
+        type: "gram",
+        actionName: `Отправить ${gramAmount} GRAM`,
+        toAddress: info.dest,
+        gramAmount,
+      };
+      
       const parsedBody = await parseActionBody(messageRelaxed.body);
-      actionString += `<div>${parsedBody.text}</div>`;
+      if (parsedBody.comment) actionInfo.comment = parsedBody.comment;
+      if (parsedBody.newOwner) {
+        actionInfo.type = "nft";
+        actionInfo.actionName = "Отправить NFT";
+        actionInfo.nftContract = info.dest;
+        actionInfo.newOwner = parsedBody.newOwner;
+      }
+      if (parsedBody.jetton) {
+        actionInfo.type = "jetton";
+        actionInfo.actionName = "Отправить жетоны";
+        actionInfo.jettonAmount = parsedBody.jetton.amount;
+        actionInfo.toAddress = info.dest;
+      }
+      
       if (sendMode) {
-        actionString += `<div>Режим отправки: ${sendModeString.join(", ")}.</div>`;
+        actionInfo.comment = (actionInfo.comment ? actionInfo.comment + "; " : "") + "Режим отправки: " + sendModeString.join(", ");
       }
 
       if (!summaryGram) {
@@ -681,6 +718,8 @@ export const checkMultisigOrder = async (
       if (!summaryJetton && parsedBody.jetton) {
         summaryJetton = parsedBody.jetton;
       }
+      
+      parsedActions.push(actionInfo);
     } else if (actionOp === 0x1d0cfbd3) {
       // update_multisig_params
       const newThreshold = slice.loadUint(8);
@@ -694,45 +733,16 @@ export const checkMultisigOrder = async (
       assert(newThreshold > 0, "Invalid new threshold");
       assert(newThreshold <= newSigners.length, "Invalid new threshold");
 
-      actionString += `<div>Обновить параметры мультикошелька</div>`;
-      actionString += `<div>Новый порог: ${newThreshold.toString()}</div>`;
-
-      actionString += "<div>Новые подписанты:</div>";
-      actionString += '<div class="daoAvatarGrid">';
-      await fetchDnsNames(newSigners, isTestnet);
-      for (let i = 0; i < newSigners.length; i++) {
-        const f = await getAddressFormat(newSigners[i], isTestnet);
-          actionString += addressAvatarHTML(
-            f,
-            false,
-            undefined,
-            getDnsName(newSigners[i]) ?? undefined,
-          );
-      }
-      actionString += "</div>";
-
-      actionString += "<div>Новые инициаторы:</div>";
-      if (newProposers.length > 0) {
-        actionString += '<div class="daoAvatarGrid">';
-        await fetchDnsNames(newProposers, isTestnet);
-        for (let i = 0; i < newProposers.length; i++) {
-          const f = await getAddressFormat(newProposers[i], isTestnet);
-          actionString += addressAvatarHTML(
-            f,
-            false,
-            undefined,
-            getDnsName(newProposers[i]) ?? undefined,
-          );
-        }
-        actionString += "</div>";
-      } else {
-        actionString += "<div>Нет инициаторов</div>";
-      }
+      parsedActions.push({
+        type: "update_multisig",
+        actionName: "Обновить параметры мультикошелька",
+        newThreshold,
+        newSigners,
+        newProposers,
+      });
     } else {
       throw new Error("Неизвестное действие");
     }
-
-    parsedActions.push(actionString);
   }
 
   return {

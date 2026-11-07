@@ -13,9 +13,11 @@ import { Order } from "multisig/multisig/Order";
 import {
   checkMultisigOrder,
   MultisigOrderInfo,
+  OrderActionInfo,
 } from "multisig/multisig/MultisigOrderChecker";
 import { MULTISIG_ORDER_CODE, IS_TESTNET } from "multisig/constants";
 import { prepareApprove } from "multisig/orders";
+import { marked } from "marked";
 
 const MONTHS_GENITIVE = [
   "января",
@@ -271,12 +273,167 @@ export default function OrderView() {
               ? "Одно действие:"
               : actions.length + " действий:"}
         </Typography>
-        {actions.map((a, i) => (
-          <Box
-            key={i}
-            dangerouslySetInnerHTML={{ __html: a }}
-            className="orderAction"
-          />
+        {actions.map((action, i) => (
+          <Box key={i} className="orderActionCard">
+            <Typography className="orderActionTitle">{action.actionName}</Typography>
+            
+            {action.type === "nft" && (
+              <>
+                {action.nftContract && (
+                  <Box className="orderActionField">
+                    <Typography className="label">NFT адрес:</Typography>
+                    <AddressLink address={{ address: action.nftContract, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                  </Box>
+                )}
+                {action.newOwner && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Новый Владелец:</Typography>
+                    <AddressLink address={{ address: action.newOwner, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                  </Box>
+                )}
+              </>
+            )}
+            
+            {action.gramAmount && (
+              <Box className="orderActionField">
+                <Typography className="label">Отправить GRAM:</Typography>
+                <Typography className="value">{action.gramAmount} GRAM</Typography>
+              </Box>
+            )}
+            
+            {action.comment && (
+              <Box className="orderActionField">
+                <Typography className="label">Комментарий:</Typography>
+                <Typography className="value">{action.comment}</Typography>
+              </Box>
+            )}
+            
+            {action.type === "jetton" && (
+              <>
+                {action.jettonAddress && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Жетон:</Typography>
+                    <AddressLink address={{ address: action.jettonAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                  </Box>
+                )}
+                {action.jettonAmount && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Количество:</Typography>
+                    <Typography className="value">{action.jettonAmount}</Typography>
+                  </Box>
+                )}
+                {action.toAddress && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Получатель:</Typography>
+                    <AddressLink address={{ address: action.toAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                  </Box>
+                )}
+              </>
+            )}
+            
+            {action.type === "proposal" && (
+              <Box className="proposalAction">
+                {action.title && (
+                  <div className="proposalActionTitle">{action.title}</div>
+                )}
+                {action.description && (
+                  <div className="proposalActionDesc" dangerouslySetInnerHTML={{ __html: marked.parse(action.description) as string }} />
+                )}
+                {action.choices && action.choices.length > 0 && (
+                  <div className="proposalActionChoices">
+                    <div className="proposalActionLabel">Варианты голосования:</div>
+                    {action.choices.map((choice, ci) => (
+                      <div key={ci} className="proposalActionChoice">
+                        <span className="proposalActionCheckbox" /> {choice}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {action.strategies && (
+                  <div className="proposalActionMetaRow">
+                    <span className="proposalActionLabel">Стратегии подсчёта голосов:</span>
+                    <span className="proposalActionValue">{action.strategies}</span>
+                  </div>
+                )}
+                {action.quorum && action.quorum > 0 && (
+                  <div className="proposalActionQuorum">
+                    <div className="proposalActionLabel">Кворум:</div>
+                    <div className="proposalActionQuorumBar">
+                      <div className="proposalActionQuorumFill" style={{ width: `${Math.min(action.quorum, 100)}%` }} />
+                    </div>
+                    <div className="proposalActionQuorumText">{action.quorum}%</div>
+                  </div>
+                )}
+                <div className="proposalActionMeta">
+                  {action.snapshotTime && (
+                    <div className="proposalActionMetaRow">
+                      <span className="proposalActionLabel">Снимок балансов:</span>
+                      <span className="proposalActionValue">{action.snapshotTime}</span>
+                    </div>
+                  )}
+                  {action.startTime && (
+                    <div className="proposalActionMetaRow">
+                      <span className="proposalActionLabel">Начало голосования:</span>
+                      <span className="proposalActionValue">{action.startTime}</span>
+                    </div>
+                  )}
+                  {action.endTime && (
+                    <div className="proposalActionMetaRow">
+                      <span className="proposalActionLabel">Окончание голосования:</span>
+                      <span className="proposalActionValue">{action.endTime}</span>
+                    </div>
+                  )}
+                  {action.hide !== undefined && (
+                    <div className="proposalActionMetaRow">
+                      <span className="proposalActionLabel">Скрытое:</span>
+                      <span className="proposalActionValue">{action.hide ? "да" : "нет"}</span>
+                    </div>
+                  )}
+                  {action.deployer && (
+                    <div className="proposalActionMetaRow">
+                      <span className="proposalActionLabel">Деплоер предложений:</span>
+                      <AddressLink address={{ address: action.deployer, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                    </div>
+                  )}
+                </div>
+              </Box>
+            )}
+            
+            {action.type === "update_multisig" && (
+              <>
+                {action.newThreshold !== undefined && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Новый порог:</Typography>
+                    <Typography className="value">{action.newThreshold}</Typography>
+                  </Box>
+                )}
+                {action.newSigners && action.newSigners.length > 0 && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Новые подписанты:</Typography>
+                    <Box className="daoAvatarGrid">
+                      {action.newSigners.map((signer, si) => (
+                        <Box key={si} className="daoAvatarGridItem">
+                          <AddressAvatar address={{ address: signer, isBounceable: true, isTestOnly: IS_TESTNET }} isMe={false} />
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+                {action.newProposers && action.newProposers.length > 0 && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Новые инициаторы:</Typography>
+                    <Box className="daoAvatarGrid">
+                      {action.newProposers.map((proposer, pi) => (
+                        <Box key={pi} className="daoAvatarGridItem">
+                          <AddressAvatar address={{ address: proposer, isBounceable: true, isTestOnly: IS_TESTNET }} isMe={false} />
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
         ))}
       </Box>
 
