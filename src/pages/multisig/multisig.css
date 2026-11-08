@@ -668,6 +668,12 @@
   gap: 12px;
 }
 
+.actionNumber {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
 .orderActionTitle {
   font-size: 18px;
   font-weight: 800;
@@ -679,6 +685,44 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.sendModeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sendModeBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--primary);
+  border-radius: 6px;
+  padding: 3px 10px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.sendModeBadgeText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.4;
+}
+
+.sendModeTexts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sendModeText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--primary);
+  opacity: 0.75;
+  line-height: 1.4;
 }
 
 /* Mobile responsive */

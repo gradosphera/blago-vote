@@ -275,7 +275,42 @@ export default function OrderView() {
         </Typography>
         {actions.map((action, i) => (
           <Box key={i} className="orderActionCard">
+            <Typography className="actionNumber">Действие №{i + 1}</Typography>
             <Typography className="orderActionTitle">{action.actionName}</Typography>
+            
+            {/* Operation code */}
+            {action.opCode !== undefined && (
+              <Box className="orderActionField">
+                <Typography className="label">Код операции:</Typography>
+                <Typography className="value">0x{action.opCode.toString(16)}</Typography>
+              </Box>
+            )}
+            
+            {/* Send mode */}
+            {action.sendMode !== undefined && (
+              <Box className="orderActionField">
+                <Typography className="label">Режим отправки:</Typography>
+                <Box className="sendModeRow">
+                  <Box className="sendModeBadge">
+                    <Typography className="sendModeBadgeText">Mode {action.sendMode}</Typography>
+                  </Box>
+                  <Box className="sendModeTexts">
+                    {Boolean(action.sendMode & 1) && (
+                      <Typography className="sendModeText">Комиссия оплачивается отдельно</Typography>
+                    )}
+                    {Boolean(action.sendMode & 2) && (
+                      <Typography className="sendModeText">Игнорирует ошибки (стандартно)</Typography>
+                    )}
+                    {Boolean(action.sendMode & 128) && (
+                      <Typography className="sendModeText">ОТПРАВИТЬ ВЕСЬ БАЛАНС</Typography>
+                    )}
+                    {Boolean(action.sendMode & 64) && (
+                      <Typography className="sendModeText">Перенести всю оставшуюся стоимость</Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            )}
             
             {action.type === "nft" && (
               <>
@@ -310,23 +345,104 @@ export default function OrderView() {
             
             {action.type === "jetton" && (
               <>
-                {action.jettonAddress && (
-                  <Box className="orderActionField">
-                    <Typography className="label">Жетон:</Typography>
-                    <AddressLink address={{ address: action.jettonAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
-                  </Box>
+                {action.jettonKind === "mint" && (
+                  <>
+                    {action.jettonMinter && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Адрес жетона:</Typography>
+                        <AddressLink address={{ address: action.jettonMinter, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                      </Box>
+                    )}
+                    <Box className="orderActionField">
+                      <Typography className="label">Количество:</Typography>
+                      <Typography className="value">{action.jettonAmount}</Typography>
+                    </Box>
+                    {action.toAddress && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Получатель:</Typography>
+                        <AddressLink address={{ address: action.toAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                      </Box>
+                    )}
+                  </>
                 )}
-                {action.jettonAmount && (
+                {action.jettonKind === "transfer" && !action.customType && (
+                  <>
+                    <Box className="orderActionField">
+                      <Typography className="label">Количество:</Typography>
+                      <Typography className="value">{action.jettonAmount}</Typography>
+                    </Box>
+                    {action.toAddress && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Получатель:</Typography>
+                        <AddressLink address={{ address: action.toAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                      </Box>
+                    )}
+                  </>
+                )}
+                {action.jettonKind === "burn" && (
                   <Box className="orderActionField">
                     <Typography className="label">Количество:</Typography>
                     <Typography className="value">{action.jettonAmount}</Typography>
                   </Box>
                 )}
-                {action.toAddress && (
+                {action.customType === "topUp" && (
                   <Box className="orderActionField">
-                    <Typography className="label">Получатель:</Typography>
-                    <AddressLink address={{ address: action.toAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                    <Typography className="label">Пополнение жетона</Typography>
                   </Box>
+                )}
+                {action.customType === "changeAdmin" && action.newAdmin && (
+                  <>
+                    <Box className="orderActionField">
+                      <Typography className="label">Новый администратор:</Typography>
+                      <AddressLink address={{ address: action.newAdmin, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                    </Box>
+                  </>
+                )}
+                {action.customType === "claimAdmin" && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Принять управление жетоном</Typography>
+                  </Box>
+                )}
+                {action.customType === "changeContent" && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Изменить URL метаданных</Typography>
+                  </Box>
+                )}
+                {action.customType === "forceTransfer" && (
+                  <>
+                    <Box className="orderActionField">
+                      <Typography className="label">Количество:</Typography>
+                      <Typography className="value">{action.jettonAmount}</Typography>
+                    </Box>
+                    {action.toAddress && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Получатель:</Typography>
+                        <AddressLink address={{ address: action.toAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                      </Box>
+                    )}
+                  </>
+                )}
+                {action.customType === "forceBurn" && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Количество:</Typography>
+                    <Typography className="value">{action.jettonAmount}</Typography>
+                  </Box>
+                )}
+                {action.customType === "lockWallet" && (
+                  <>
+                    {action.userAddress && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Кошелёк пользователя:</Typography>
+                        <AddressLink address={{ address: action.userAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                      </Box>
+                    )}
+                    {action.lockType && (
+                      <Box className="orderActionField">
+                        <Typography className="label">Статус:</Typography>
+                        <Typography className="value">{action.lockType}</Typography>
+                      </Box>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -432,6 +548,23 @@ export default function OrderView() {
                   </Box>
                 )}
               </>
+            )}
+            
+            {action.nominatorOp === "withdraw" && (
+              <>
+                {action.withdrawAmount && (
+                  <Box className="orderActionField">
+                    <Typography className="label">Сумма вывода:</Typography>
+                    <Typography className="value">{action.withdrawAmount} GRAM</Typography>
+                  </Box>
+                )}
+              </>
+            )}
+            {action.nominatorOp === "changeValidator" && action.validatorAddress && (
+              <Box className="orderActionField">
+                <Typography className="label">Новый валидатор:</Typography>
+                <AddressLink address={{ address: action.validatorAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+              </Box>
             )}
           </Box>
         ))}

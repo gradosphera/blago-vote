@@ -19,6 +19,21 @@ import { LastOrder, isLastOrderExpired } from "multisig/multisig/MultisigChecker
 
 const ORDERS_PAGE_SIZE = 5;
 
+const truncateOrderId = (id: bigint | undefined): string => {
+  if (id === undefined) return "";
+  const s = id.toString();
+  if (s.length <= 8) return s;
+  return s.slice(0, 3) + "..." + s.slice(-3);
+};
+
+const formatGramBalance = (gram: string): string => {
+  const match = gram.match(/^([\d.]+)\s+GRAM$/);
+  if (!match) return gram;
+  const value = parseFloat(match[1]);
+  if (isNaN(value)) return gram;
+  return value.toFixed(2) + " GRAM";
+};
+
 const orderStatusIcon = (executed: boolean, expired: boolean): string => {
   const color = executed ? "#4bb34b" : "#3069ff";
   const shape = expired
@@ -114,7 +129,15 @@ export default function MultisigView() {
     let state = "";
     let showLink = false;
 
-    if (lastOrder.errorMessage) {
+    if (lastOrder.executionStatus === "success") {
+      icon = orderStatusIcon(true, false);
+      state = "выполнено";
+      showLink = true;
+    } else if (lastOrder.executionStatus === "failed") {
+      icon = orderStatusIcon(false, false);
+      state = "ошибка выполнения";
+      showLink = true;
+    } else if (lastOrder.errorMessage) {
       if (lastOrder.errorMessage.startsWith("Контракт не активен")) {
         if (isExpired) {
           icon = orderStatusIcon(false, true);
@@ -169,7 +192,7 @@ export default function MultisigView() {
               : "отправка")
         : "";
     const gramHTML = summary?.gram
-      ? '<div class="orderListItem_gramCol">' + summary.gram + "</div>"
+      ? '<div class="orderListItem_gramCol">' + formatGramBalance(summary.gram) + "</div>"
       : "";
     let statsHTML = "";
     if (jettonLine || showLink) {
@@ -197,7 +220,7 @@ export default function MultisigView() {
         />
         <Box className="orderListItem_info">
           <Box className="orderListItem_title">
-            {"Заявка #" + orderId}
+            {"Заявка #" + truncateOrderId(orderId)}
             {state ? (
               <span className="orderListItem_state"> — {state}</span>
             ) : null}

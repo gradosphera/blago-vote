@@ -48,7 +48,21 @@ export interface OrderActionInfo {
   // For Jetton transfers
   jettonAmount?: string;
   jettonAddress?: Address;
+  jettonKind?: "mint" | "transfer" | "burn";
   toAddress?: Address;
+  // Custom jetton actions
+  customType?: "topUp" | "changeAdmin" | "claimAdmin" | "changeContent" | "forceTransfer" | "forceBurn" | "lockWallet";
+  // For changeAdmin
+  newAdmin?: Address;
+  // For changeContent
+  newMetadataUrl?: string;
+  // For lockWallet
+  userAddress?: Address;
+  lockType?: string;
+  // For nominator pool
+  nominatorOp?: "withdraw" | "changeValidator";
+  withdrawAmount?: string;
+  validatorAddress?: Address;
   // Common
   comment?: string;
   // For proposals
@@ -66,6 +80,12 @@ export interface OrderActionInfo {
   newThreshold?: number;
   newSigners?: Address[];
   newProposers?: Address[];
+  // Operation code and send mode
+  opCode?: number;
+  sendMode?: number;
+  sendModeString?: string;
+  // Jetton minter address (for mint actions)
+  jettonMinter?: Address;
 }
 
 export interface MultisigOrderInfo {
@@ -245,8 +265,18 @@ export const checkMultisigOrder = async (
   ): Promise<{
     comment?: string;
     jetton?: { amount: string; kind: "mint" | "transfer" | "burn" };
+    jettonMinter?: Address;
     nftContract?: Address;
     newOwner?: Address;
+    customType?: "topUp" | "changeAdmin" | "claimAdmin" | "changeContent" | "forceTransfer" | "forceBurn" | "lockWallet";
+    newAdmin?: Address;
+    newMetadataUrl?: string;
+    userAddress?: Address;
+    lockType?: string;
+    nominatorOp?: "withdraw" | "changeValidator";
+    withdrawAmount?: string;
+    validatorAddress?: Address;
+    toAddress?: Address;
     title?: string;
     description?: string;
     choices?: string[];
@@ -289,35 +319,32 @@ export const checkMultisigOrder = async (
           amount: parsed.internalMessage.jettonAmount.toString(),
           kind: "mint",
         },
+        jettonMinter: parsed.toAddress,
       };
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseTopUp(slice);
-      return {};
+      return { customType: "topUp" };
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseChangeAdmin(slice);
-      const newAdminAddress = await formatAddressAndUrl(
-        parsed.newAdminAddress,
-        isTestnet,
-      );
-      return {};
+      return { customType: "changeAdmin", newAdmin: parsed.newAdminAddress };
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseClaimAdmin(slice);
-      return {};
+      return { customType: "claimAdmin" };
     } catch (e) {}
 
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseChangeContent(slice);
-      return {};
+      return { customType: "changeContent", newMetadataUrl: parsed.newMetadataUrl };
     } catch (e) {}
 
     try {
@@ -356,8 +383,11 @@ export const checkMultisigOrder = async (
         JettonMinter.parseSetStatus,
       );
       const lockType = intToLockType(parsed.action.newStatus);
-      void lockType;
-      return {};
+      return {
+        customType: "lockWallet",
+        userAddress: parsed.toAddress,
+        lockType,
+      };
     } catch (e) {}
 
     try {
@@ -374,10 +404,12 @@ export const checkMultisigOrder = async (
         "Force transfer forward payload not supported",
       );
       return {
+        customType: "forceTransfer",
         jetton: {
           amount: parsed.action.jettonAmount.toString(),
           kind: "transfer",
         },
+        toAddress: parsed.action.toAddress,
       };
     } catch (e) {}
 
@@ -387,6 +419,7 @@ export const checkMultisigOrder = async (
       if (parsed.action.customPayload)
         throw new Error("Burn custom payload not supported");
       return {
+        customType: "forceBurn",
         jetton: {
           amount: parsed.action.jettonAmount.toString(),
           kind: "burn",
@@ -402,8 +435,10 @@ export const checkMultisigOrder = async (
         const queryId = slice.loadUint(64);
         const coins = slice.loadCoins();
         void queryId;
-        void coins;
-        return {};
+        return {
+          nominatorOp: "withdraw",
+          withdrawAmount: fromNano(coins),
+        };
       }
     } catch (e) {}
 
@@ -415,8 +450,10 @@ export const checkMultisigOrder = async (
         const queryId = slice.loadUint(64);
         const validatorAddress = slice.loadAddress();
         void queryId;
-        void validatorAddress;
-        return {};
+        return {
+          nominatorOp: "changeValidator",
+          validatorAddress,
+        };
       }
     } catch (e) {}
 
@@ -425,7 +462,7 @@ export const checkMultisigOrder = async (
       const op = slice.loadUint(32);
       if (op === VESTING_INTERNAL_TRANSFER) {
         const queryId = slice.loadUint(64);
-        const sendMode = slice.loadUint(8);
+      const sendMode = Number(slice.loadUint(8));
         if (sendMode !== 3)
           throw new Error("only send mode 3 supported by vesting");
         const msg = slice.loadRef();
@@ -481,13 +518,28 @@ export const checkMultisigOrder = async (
       const titleRaw = bodySlice.loadStringRefTail();
 
       const paramsSlice = bodySlice.loadRef().beginParse();
-      const descriptionRaw = paramsSlice.loadStringRefTail();
+
+      // DAO may store description as string or as raw cell (BOC)
+      let descriptionRaw: string | undefined;
+      descriptionRaw = paramsSlice.loadStringRefTail();
+
+      // If description is stored as a raw cell reference, load it
+      if (!descriptionRaw && paramsSlice.remainingRefs > 0) {
+        try {
+          const descCell = paramsSlice.loadRef();
+          descriptionRaw = descCell.beginParse().loadStringTail();
+        } catch (e) {
+          // No description available
+        }
+      }
 
       const parseLang = (json?: string) => {
         if (!json) return "";
         try {
           const parsed = JSON.parse(json);
-          return (parsed.en || parsed.ru || Object.values(parsed)[0] || "").toString().trim();
+          return (parsed.en || parsed.ru || Object.values(parsed)[0] || "")
+            .toString()
+            .trim();
         } catch {
           return json.trim();
         }
@@ -541,17 +593,13 @@ export const checkMultisigOrder = async (
                 ? entry.name
                 : (strategyNames[String(entry?.type)] ??
                   `Стратегия #${String(entry?.type)}`);
-            const args = (Array.isArray(entry?.arguments)
-              ? entry.arguments
-              : []
+            const args = (
+              Array.isArray(entry?.arguments) ? entry.arguments : []
             )
               .map((a) => a?.value ?? "")
               .filter(Boolean)
               .map((a) => sanitizeHTML(a));
-            return (
-              name +
-              (args.length ? ` (${args.join(", ")})` : "")
-            );
+            return name + (args.length ? ` (${args.join(", ")})` : "");
           })
           .join("; ");
       } catch (e) {}
@@ -632,8 +680,9 @@ export const checkMultisigOrder = async (
 
   let parsedActions: OrderActionInfo[] = [];
   let summaryGram = "";
-  let summaryJetton: { amount: string; kind: "mint" | "transfer" | "burn" } | undefined =
-    undefined;
+  let summaryJetton:
+    | { amount: string; kind: "mint" | "transfer" | "burn" }
+    | undefined = undefined;
 
   const actionsKeys = actions.keys();
   for (let key of actionsKeys) {
@@ -642,7 +691,7 @@ export const checkMultisigOrder = async (
     const actionOp = slice.loadUint(32);
     if (actionOp === 0xf1381e5b) {
       // send message
-      const sendMode = slice.loadUint(8);
+      const sendMode = Number(slice.loadUint(8));
 
       let sendModeString: string[] = [];
       let allBalance = false;
@@ -685,14 +734,25 @@ export const checkMultisigOrder = async (
       const gramAmount = allBalance
         ? "ВЕСЬ БАЛАНС"
         : fromNano(info.value.coins);
-      
+
+      // Build send mode description
+      const sendModeDescriptions: string[] = [];
+      sendModeDescriptions.push(`Mode ${sendMode}`);
+      if (sendMode & 1) sendModeDescriptions.push("Оплачивает комиссии отдельно");
+      if (sendMode & 2) sendModeDescriptions.push("Игнорировать ошибки отправки");
+      if (sendMode & 128) sendModeDescriptions.push("ОТПРАВИТЬ ВЕСЬ БАЛАНС");
+      if (sendMode & 64) sendModeDescriptions.push("Перенести всю оставшуюся стоимость входящего сообщения");
+
       const actionInfo: OrderActionInfo = {
         type: "gram",
         actionName: `Отправить ${gramAmount} GRAM`,
         toAddress: info.dest,
         gramAmount,
+        opCode: actionOp,
+        sendMode,
+        sendModeString: sendModeDescriptions.join(", "),
       };
-      
+
       const parsedBody = await parseActionBody(messageRelaxed.body);
       if (parsedBody.comment) actionInfo.comment = parsedBody.comment;
       if (parsedBody.newOwner) {
@@ -700,16 +760,73 @@ export const checkMultisigOrder = async (
         actionInfo.actionName = "Отправить NFT";
         actionInfo.nftContract = info.dest;
         actionInfo.newOwner = parsedBody.newOwner;
+        delete actionInfo.gramAmount;
       }
       if (parsedBody.jetton) {
         actionInfo.type = "jetton";
-        actionInfo.actionName = "Отправить жетоны";
         actionInfo.jettonAmount = parsedBody.jetton.amount;
+        actionInfo.jettonKind = parsedBody.jetton.kind;
+        delete actionInfo.gramAmount;
+        if (parsedBody.jetton.kind === "mint") {
+          actionInfo.actionName = "Минт жетонов";
+          actionInfo.jettonMinter = parsedBody.jettonMinter;
+        } else if (parsedBody.jetton.kind === "burn") {
+          actionInfo.actionName = "Принудительное сжигание жетонов";
+        } else {
+          actionInfo.actionName = "Перевод жетонов";
+        }
         actionInfo.toAddress = info.dest;
       }
-      
-      if (sendMode) {
-        actionInfo.comment = (actionInfo.comment ? actionInfo.comment + "; " : "") + "Режим отправки: " + sendModeString.join(", ");
+      if (parsedBody.customType) {
+        actionInfo.type = "jetton";
+        actionInfo.customType = parsedBody.customType;
+        if (parsedBody.customType === "topUp") {
+          actionInfo.actionName = "Пополнить жетон";
+        } else if (parsedBody.customType === "changeAdmin") {
+          actionInfo.actionName = "Сменить администратора жетона";
+          actionInfo.newAdmin = parsedBody.newAdmin;
+        } else if (parsedBody.customType === "claimAdmin") {
+          actionInfo.actionName = "Принять управление жетоном";
+        } else if (parsedBody.customType === "changeContent") {
+          actionInfo.actionName = "Изменить URL метаданных жетона";
+          actionInfo.newMetadataUrl = parsedBody.newMetadataUrl;
+        } else if (parsedBody.customType === "forceTransfer") {
+          actionInfo.actionName = "Принудительный перевод жетонов";
+          actionInfo.jettonAmount = parsedBody.jetton?.amount;
+          actionInfo.toAddress = parsedBody.toAddress;
+        } else if (parsedBody.customType === "forceBurn") {
+          actionInfo.actionName = "Принудительное сжигание жетонов";
+          actionInfo.jettonAmount = parsedBody.jetton?.amount;
+        } else if (parsedBody.customType === "lockWallet") {
+          actionInfo.actionName = "Установить статус для кошелька жетонов";
+          actionInfo.userAddress = parsedBody.userAddress;
+          actionInfo.lockType = parsedBody.lockType;
+        }
+      }
+      if (parsedBody.title) {
+        actionInfo.type = "proposal";
+        actionInfo.actionName = "Предложение";
+        actionInfo.title = parsedBody.title;
+        actionInfo.description = parsedBody.description;
+        actionInfo.choices = parsedBody.choices;
+        actionInfo.strategies = parsedBody.strategies;
+        actionInfo.snapshotTime = parsedBody.snapshotTime;
+        actionInfo.startTime = parsedBody.startTime;
+        actionInfo.endTime = parsedBody.endTime;
+        actionInfo.quorum = parsedBody.quorum;
+        actionInfo.hide = parsedBody.hide;
+        actionInfo.deployer = parsedBody.deployer;
+      }
+      if (parsedBody.nominatorOp) {
+        if (parsedBody.nominatorOp === "withdraw") {
+          actionInfo.actionName = "Единый пул номинатора: Вывод";
+          actionInfo.nominatorOp = parsedBody.nominatorOp;
+          actionInfo.withdrawAmount = parsedBody.withdrawAmount;
+        } else if (parsedBody.nominatorOp === "changeValidator") {
+          actionInfo.actionName = "Единый пул номинатора: Сменить адрес валидатора";
+          actionInfo.nominatorOp = parsedBody.nominatorOp;
+          actionInfo.validatorAddress = parsedBody.validatorAddress;
+        }
       }
 
       if (!summaryGram) {
@@ -718,7 +835,7 @@ export const checkMultisigOrder = async (
       if (!summaryJetton && parsedBody.jetton) {
         summaryJetton = parsedBody.jetton;
       }
-      
+
       parsedActions.push(actionInfo);
     } else if (actionOp === 0x1d0cfbd3) {
       // update_multisig_params

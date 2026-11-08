@@ -603,18 +603,21 @@ export const checkMultisig = async (
           isTestnet,
         );
 
-        for (const trace of result.traces || []) {
-          if (trace.is_incomplete) continue;
+        // Помечаем все хеши батча как разрешённые — даже если трасса
+        // неполная или отсутствует, это не значит что транзакция провалилась.
+        for (const transactionHash of batch) {
+          resolvedHashes.add(transactionHash);
+        }
 
+        for (const trace of result.traces || []) {
           const transactions = trace.transactions || {};
           const failed = Object.values(transactions).some(
             isFailedToncenterTransaction,
           );
 
           for (const transactionHash of batch) {
-            if (transactions[transactionHash]) {
-              resolvedHashes.add(transactionHash);
-              if (failed) failedHashes.add(transactionHash);
+            if (failed && transactions[transactionHash]) {
+              failedHashes.add(transactionHash);
             }
           }
         }
