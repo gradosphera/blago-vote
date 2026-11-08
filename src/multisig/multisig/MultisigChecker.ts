@@ -5,7 +5,7 @@ import {
   equalsAddressLists,
   getAddressFormat,
 } from "../utils/utils";
-import { Address, Cell, Dictionary, fromNano } from "@ton/core";
+import { Address, Cell, Dictionary, fromNano, loadMessageRelaxed } from "@ton/core";
 import { endParse, Multisig, parseMultisigData } from "./Multisig";
 import {
   MyNetworkProvider,
@@ -208,6 +208,7 @@ export interface LastOrder {
   expiredAt?: number;
   summary?: MultisigOrderInfo["summary"];
   isParamsUpdate?: boolean;
+  actionType?: "gram" | "nft" | "jetton" | "proposal" | "update_multisig";
 }
 
 // Сумма отправки GRAM для исполненной заявки берётся из исходящих сообщений
@@ -249,6 +250,51 @@ const hasParamsUpdateAction = (actions: Dictionary<number, Cell>): boolean => {
     }
   }
   return false;
+};
+
+const extractActionType = (
+  actions: Dictionary<number, Cell>,
+): LastOrder["actionType"] => {
+  for (const actionCell of actions.values()) {
+    try {
+      const slice = actionCell.beginParse();
+      const actionOp = slice.loadUint(32);
+      if (actionOp === 0x1d0cfbd3) return "update_multisig";
+      if (actionOp === 0xf1381e5b) {
+        // send message action — проверяем тело
+        const actionBody = slice.loadRef();
+        // Парсим message через loadMessageRelaxed чтобы получить body
+        const messageRelaxed = loadMessageRelaxed(actionBody.beginParse());
+        const body = messageRelaxed.body;
+        if (body) {
+          const bodySlice = body.beginParse();
+          if (bodySlice.remainingBits >= 32) {
+            const bodyOp = bodySlice.loadUint(32);
+            // Jetton op codes
+            if (bodyOp === 0x178cf4de || bodyOp === 0x7bdd97de || bodyOp === 0x234e5186) return "jetton";
+            // NFT op codes (standard)
+            if (bodyOp === 0xb07cf9e8 || bodyOp === 0x5fa3a943 || bodyOp === 0x5fcc3d14) return "nft";
+            // Proposal op code (0x5938a1cb = DeployAndInitProposal)
+            if (bodyOp === 0x5938a1cb) return "proposal";
+            // Fallback heuristic for non-standard NFT collections
+            // NFT transfer (TEP-62): op(32) + queryId(64) + newOwner(256) + responseTo(256) = 608 bits total
+            // После loadUint(32) remainingBits на 32 меньше, поэтому порог = 576
+            if (bodySlice.remainingBits >= 576) {
+              return "nft";
+            }
+            // Иначе GRAM
+            return "gram";
+          }
+        }
+        return "gram";
+      }
+      // 0x8da914a2 = proposal
+      if (actionOp === 0x8da914a2) return "proposal";
+    } catch (e) {
+      continue;
+    }
+  }
+  return undefined;
 };
 
 export const isLastOrderExpired = (lastOrder: LastOrder): boolean => {
@@ -502,6 +548,7 @@ export const checkMultisig = async (
             type: "new",
             expiredAt: Number(expiredAt) * 1000,
             isParamsUpdate: hasParamsUpdateAction(order),
+            actionType: extractActionType(order),
             order: {
               address: {
                 address: orderAddress,
@@ -538,6 +585,7 @@ export const checkMultisig = async (
             expiredAt: lastOrder.expiredAt,
             summary: lastOrder.summary,
             isParamsUpdate: lastOrder.isParamsUpdate,
+            actionType: lastOrder.actionType,
           };
         } else {
           const existing = lastOrdersMap[orderId];
@@ -637,16 +685,22 @@ export const checkMultisig = async (
       }
 
       const getOrderInfo = async (lastOrder: LastOrder) => {
-        if (lastOrder.type === "pending") {
-          try {
-            const orderInfo = await checkMultisigOrder(
-              lastOrder.order!.address,
-              multisigOrderCode,
-              multisigInfo,
-              isTestnet,
-              false,
-            );
-            lastOrder.orderInfo = orderInfo;
+        try {
+          const orderInfo = await checkMultisigOrder(
+            lastOrder.order!.address,
+            multisigOrderCode,
+            multisigInfo,
+            isTestnet,
+            false,
+          );
+          lastOrder.orderInfo = orderInfo;
+          // Обновляем actionType из orderInfo.actions, если он доступен
+          // (более надёжный источник, чем extractActionType из тела new_order)
+          if (orderInfo.actions?.[0]?.type) {
+            lastOrder.actionType = orderInfo.actions[0].type;
+          }
+          // Для pending заявок обновляем статус на executed при необходимости
+          if (lastOrder.type === "pending") {
             if (orderInfo.isExecuted) {
               lastOrder.type = "executed";
               lastOrder.expiredAt = undefined;
@@ -664,17 +718,17 @@ export const checkMultisig = async (
                   "Подписанты или порог мультикошелька не совпадают с заявкой";
               }
             }
-          } catch (e: any) {
-            // Только однозначный признак "Контракт не активен" означает, что
-            // заявка исполнена или просрочена (контракт заявки уничтожен).
-            // Переходные ошибки API (timeout, rate limit, HTTP-сбой) не должны
-            // менять статус заявки и перекидывать её между разделами списка.
-            if (String(e.message).startsWith("Контракт не активен")) {
-              lastOrder.type = "executed";
-              lastOrder.errorMessage = e.message;
-            } else {
-              console.error("Failed to check order info:", e);
-            }
+          }
+        } catch (e: any) {
+          // Только однозначный признак "Контракт не активен" означает, что
+          // заявка исполнена или просрочена (контракт заявки уничтожен).
+          // Переходные ошибки API (timeout, rate limit, HTTP-сбой) не должны
+          // менять статус заявки и перекидывать её между разделами списка.
+          if (String(e.message).startsWith("Контракт не активен")) {
+            lastOrder.type = "executed";
+            lastOrder.errorMessage = e.message;
+          } else {
+            console.error("Failed to check order info:", e);
           }
         }
       };

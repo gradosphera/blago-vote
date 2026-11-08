@@ -520,6 +520,42 @@
   text-align: left;
 }
 
+.orderListItem_statusBadge.status-error {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+}
+
+.orderListItem_statusBadge.status-error .orderListItem_statusBadgeText {
+  color: var(--error);
+}
+
+.orderListItem_statusBadge.status-expired {
+  border-color: #f5a623;
+  background: color-mix(in srgb, #f5a623 15%, transparent);
+}
+
+.orderListItem_statusBadge.status-expired .orderListItem_statusBadgeText {
+  color: #f5a623;
+}
+
+[data-theme="dark"] .orderListItem_statusBadge.status-error {
+  border-color: #ff5c5c;
+  background: color-mix(in srgb, #ff5c5c 15%, transparent);
+}
+
+[data-theme="dark"] .orderListItem_statusBadge.status-error .orderListItem_statusBadgeText {
+  color: #ff5c5c;
+}
+
+[data-theme="dark"] .orderListItem_statusBadge.status-expired {
+  border-color: #ffc04d;
+  background: color-mix(in srgb, #ffc04d 15%, transparent);
+}
+
+[data-theme="dark"] .orderListItem_statusBadge.status-expired .orderListItem_statusBadgeText {
+  color: #ffc04d;
+}
+
 .orderListItem_actionText {
   margin: 0;
   font-size: 13px;

@@ -25,6 +25,15 @@ const truncateOrderId = (id: bigint | undefined): string => {
   return s.slice(0, 3) + "..." + s.slice(-3);
 };
 
+const declension = (n: number, forms: [string, string, string]): string => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return forms[2];
+  if (mod10 === 1) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4) return forms[1];
+  return forms[2];
+};
+
 const formatRelativeTime = (utime: number): string => {
   const now = Date.now();
   const diff = now - utime * 1000;
@@ -34,23 +43,30 @@ const formatRelativeTime = (utime: number): string => {
   if (absDiff < 60_000) return ago ? "только что" : "через " + Math.round(60 - absDiff / 1000) + " сек";
   if (absDiff < 3_600_000) {
     const v = Math.round(absDiff / 60_000);
-    const word = v === 1 ? "минуту" : v < 5 ? "минуты" : "минут";
-    return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+    return ago ? v + " " + declension(v, ["минуту", "минуты", "минут"]) + " назад" : "через " + v + " " + declension(v, ["минуту", "минуты", "минут"]);
   }
   if (absDiff < 86_400_000) {
     const v = Math.round(absDiff / 3_600_000);
-    const word = v === 1 ? "час" : v < 5 ? "часа" : "часов";
-    return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+    return ago ? v + " " + declension(v, ["час", "часа", "часов"]) + " назад" : "через " + v + " " + declension(v, ["час", "часа", "часов"]);
   }
   const v = Math.round(absDiff / 86_400_000);
-  const word = v === 1 ? "день" : v < 5 ? "дня" : "дней";
-  return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+  return ago ? v + " " + declension(v, ["день", "дня", "дней"]) + " назад" : "через " + v + " " + declension(v, ["день", "дня", "дней"]);
 };
 
 const formatActionLabel = (
   summary: { gram?: string; jetton?: { amount: string; kind: "mint" | "transfer" | "burn" } } | undefined,
   isBurn: boolean,
+  actionType?: "gram" | "nft" | "jetton" | "proposal" | "update_multisig",
 ): string => {
+  if (actionType === "nft") return "Отправить NFT";
+  if (actionType === "jetton") {
+    if (isBurn) return "Сжигание жетонов";
+    if (summary?.jetton?.kind === "mint") return "Выпуск жетонов";
+    if (summary?.jetton?.kind === "burn") return "Сжигание жетонов";
+    return "Отправка жетонов";
+  }
+  if (actionType === "proposal") return "Предложение";
+  if (actionType === "update_multisig") return "Обновление параметров";
   if (!summary) return "";
   if (isBurn) return "Принудительное сжигание";
   if (summary.jetton) {
@@ -159,6 +175,7 @@ export default function MultisigView() {
 
     let icon = "";
     let state = "";
+    let statusClass = "";
     let timeLabel = "";
 
     if (lastOrder.executionStatus === "success") {
@@ -167,13 +184,15 @@ export default function MultisigView() {
       timeLabel = "Исполнено";
     } else if (lastOrder.executionStatus === "failed") {
       icon = orderStatusIcon(false, false);
-      state = "ошибка выполнения";
+      state = "ошибка";
+      statusClass = "status-error";
       timeLabel = "Ошибка";
     } else if (lastOrder.errorMessage) {
       if (lastOrder.errorMessage.startsWith("Контракт не активен")) {
         if (isExpired) {
           icon = orderStatusIcon(false, true);
           state = "просрочена";
+          statusClass = "status-expired";
           timeLabel = "Просрочена";
         } else {
           state = "контракт ещё не активен";
@@ -181,7 +200,8 @@ export default function MultisigView() {
         }
       } else if (lastOrder.errorMessage.startsWith("Неудача")) {
         icon = orderStatusIcon(false, false);
-        state = "ошибка выполнения";
+        state = "ошибка";
+        statusClass = "status-error";
         timeLabel = "Ошибка";
       } else {
         icon = orderStatusIcon(false, false);
@@ -192,6 +212,7 @@ export default function MultisigView() {
       if (isExpired) {
         icon = orderStatusIcon(false, true);
         state = "просрочена";
+        statusClass = "status-expired";
         timeLabel = "Просрочена";
       } else if (lastOrder.type === "executed") {
         icon = orderStatusIcon(true, false);
@@ -202,23 +223,8 @@ export default function MultisigView() {
       }
     }
 
-    let approvals = "";
-    if (orderInfo) {
-      approvals = "Подтверждений: " + orderInfo.approvalsNum + "/" + orderInfo.threshold;
-      if (lastOrder.type === "pending" && myAddress) {
-        const myIndex = orderInfo.signers.findIndex((s) =>
-          s.address.equals(myAddress),
-        );
-        if (myIndex > -1) {
-          const mask = 1 << myIndex;
-          const isSigned = orderInfo.approvalsMask & mask;
-          approvals += isSigned ? " — Вы подтвердили" : " — Вы ещё не подтвердили";
-        }
-      }
-    }
-
     const isBurn = summary?.jetton?.kind === "burn";
-    const actionLabel = formatActionLabel(summary, isBurn);
+    const actionLabel = orderInfo?.actions?.[0]?.actionName || formatActionLabel(summary, isBurn, lastOrder.actionType);
     return (
       <Box
         key={orderId + "_" + orderAddress}
@@ -230,9 +236,6 @@ export default function MultisigView() {
             <Box className="orderListItem_title">
               {"#" + truncateOrderId(orderId)}
             </Box>
-            {approvals && !isExpired ? (
-              <Box className="orderListItem_approvals">{approvals}</Box>
-            ) : null}
           </Box>
         </Box>
         <Box className="multisig_lastOrderCol multisig_lastOrderColAction">
@@ -243,16 +246,16 @@ export default function MultisigView() {
         <Box className="multisig_lastOrderCol multisig_lastOrderColApprovals">
           {orderInfo ? (
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{
+                  width: orderInfo.approvalsNum * 12,
+                  height: 3,
+                  backgroundImage: `repeating-linear-gradient(to right, ${lineColor} 0, ${lineColor} 7px, transparent 7px, transparent 14px)`,
+                }}
+              />
               <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
                 {orderInfo.approvalsNum}/{orderInfo.threshold}
               </span>
-              <div
-                style={{
-                  width: orderInfo.approvalsNum * 10,
-                  height: 3,
-                  backgroundImage: `repeating-linear-gradient(to right, ${lineColor} 0, ${lineColor} 5px, transparent 5px, transparent 10px)`,
-                }}
-              />
             </div>
           ) : (
             <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
@@ -262,7 +265,7 @@ export default function MultisigView() {
         </Box>
         <Box className="multisig_lastOrderCol multisig_lastOrderColStatus">
           {state ? (
-            <Box className="orderListItem_statusBadge">
+            <Box className={"orderListItem_statusBadge" + (statusClass ? " " + statusClass : "")}>
               <Typography className="orderListItem_statusBadgeText">{state}</Typography>
             </Box>
           ) : null}
@@ -274,11 +277,7 @@ export default function MultisigView() {
             </Typography>
           ) : null}
         </Box>
-        {isBurn ? (
-          <span className="orderListItem_burn" title="Принудительное сжигание">
-            🔥
-          </span>
-        ) : null}
+
       </Box>
     );
   };

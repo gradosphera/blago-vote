@@ -51,7 +51,14 @@ export interface OrderActionInfo {
   jettonKind?: "mint" | "transfer" | "burn";
   toAddress?: Address;
   // Custom jetton actions
-  customType?: "topUp" | "changeAdmin" | "claimAdmin" | "changeContent" | "forceTransfer" | "forceBurn" | "lockWallet";
+  customType?:
+    | "topUp"
+    | "changeAdmin"
+    | "claimAdmin"
+    | "changeContent"
+    | "forceTransfer"
+    | "forceBurn"
+    | "lockWallet";
   // For changeAdmin
   newAdmin?: Address;
   // For changeContent
@@ -268,7 +275,14 @@ export const checkMultisigOrder = async (
     jettonMinter?: Address;
     nftContract?: Address;
     newOwner?: Address;
-    customType?: "topUp" | "changeAdmin" | "claimAdmin" | "changeContent" | "forceTransfer" | "forceBurn" | "lockWallet";
+    customType?:
+      | "topUp"
+      | "changeAdmin"
+      | "claimAdmin"
+      | "changeContent"
+      | "forceTransfer"
+      | "forceBurn"
+      | "lockWallet";
     newAdmin?: Address;
     newMetadataUrl?: string;
     userAddress?: Address;
@@ -344,7 +358,10 @@ export const checkMultisigOrder = async (
     try {
       const slice = cell.beginParse();
       const parsed = JettonMinter.parseChangeContent(slice);
-      return { customType: "changeContent", newMetadataUrl: parsed.newMetadataUrl };
+      return {
+        customType: "changeContent",
+        newMetadataUrl: parsed.newMetadataUrl,
+      };
     } catch (e) {}
 
     try {
@@ -462,7 +479,7 @@ export const checkMultisigOrder = async (
       const op = slice.loadUint(32);
       if (op === VESTING_INTERNAL_TRANSFER) {
         const queryId = slice.loadUint(64);
-      const sendMode = Number(slice.loadUint(8));
+        const sendMode = Number(slice.loadUint(8));
         if (sendMode !== 3)
           throw new Error("only send mode 3 supported by vesting");
         const msg = slice.loadRef();
@@ -738,10 +755,15 @@ export const checkMultisigOrder = async (
       // Build send mode description
       const sendModeDescriptions: string[] = [];
       sendModeDescriptions.push(`Mode ${sendMode}`);
-      if (sendMode & 1) sendModeDescriptions.push("Оплачивает комиссии отдельно");
-      if (sendMode & 2) sendModeDescriptions.push("Игнорировать ошибки отправки");
+      if (sendMode & 1)
+        sendModeDescriptions.push("Оплачивает комиссии отдельно");
+      if (sendMode & 2)
+        sendModeDescriptions.push("Игнорировать ошибки отправки");
       if (sendMode & 128) sendModeDescriptions.push("ОТПРАВИТЬ ВЕСЬ БАЛАНС");
-      if (sendMode & 64) sendModeDescriptions.push("Перенести всю оставшуюся стоимость входящего сообщения");
+      if (sendMode & 64)
+        sendModeDescriptions.push(
+          "Перенести всю оставшуюся стоимость входящего сообщения",
+        );
 
       const actionInfo: OrderActionInfo = {
         type: "gram",
@@ -823,7 +845,8 @@ export const checkMultisigOrder = async (
           actionInfo.nominatorOp = parsedBody.nominatorOp;
           actionInfo.withdrawAmount = parsedBody.withdrawAmount;
         } else if (parsedBody.nominatorOp === "changeValidator") {
-          actionInfo.actionName = "Единый пул номинатора: Сменить адрес валидатора";
+          actionInfo.actionName =
+            "Единый пул номинатора: Сменить адрес валидатора";
           actionInfo.nominatorOp = parsedBody.nominatorOp;
           actionInfo.validatorAddress = parsedBody.validatorAddress;
         }
@@ -852,7 +875,7 @@ export const checkMultisigOrder = async (
 
       parsedActions.push({
         type: "update_multisig",
-        actionName: "Обновить параметры мультикошелька",
+        actionName: "Обновить параметры",
         newThreshold,
         newSigners,
         newProposers,
