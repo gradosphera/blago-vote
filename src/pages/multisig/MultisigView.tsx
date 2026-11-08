@@ -1,4 +1,4 @@
-import { Box, Button, Typography, CircularProgress } from "@mui/material";
+import { Box, Button, Typography, CircularProgress, useTheme } from "@mui/material";
 import "./multisig.css";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -9,7 +9,6 @@ import { useAppNavigation } from "router/navigation";
 import { useDnsNames, AddressAvatar, AddressLink } from "./Avatar";
 import {
   equalsMsgAddresses,
-  base64toHex,
   addressToString,
   AddressInfo,
 } from "multisig/utils/utils";
@@ -26,12 +25,43 @@ const truncateOrderId = (id: bigint | undefined): string => {
   return s.slice(0, 3) + "..." + s.slice(-3);
 };
 
-const formatGramBalance = (gram: string): string => {
-  const match = gram.match(/^([\d.]+)\s+GRAM$/);
-  if (!match) return gram;
-  const value = parseFloat(match[1]);
-  if (isNaN(value)) return gram;
-  return value.toFixed(2) + " GRAM";
+const formatRelativeTime = (utime: number): string => {
+  const now = Date.now();
+  const diff = now - utime * 1000;
+  const absDiff = Math.abs(diff);
+  const ago = diff >= 0;
+
+  if (absDiff < 60_000) return ago ? "только что" : "через " + Math.round(60 - absDiff / 1000) + " сек";
+  if (absDiff < 3_600_000) {
+    const v = Math.round(absDiff / 60_000);
+    const word = v === 1 ? "минуту" : v < 5 ? "минуты" : "минут";
+    return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+  }
+  if (absDiff < 86_400_000) {
+    const v = Math.round(absDiff / 3_600_000);
+    const word = v === 1 ? "час" : v < 5 ? "часа" : "часов";
+    return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+  }
+  const v = Math.round(absDiff / 86_400_000);
+  const word = v === 1 ? "день" : v < 5 ? "дня" : "дней";
+  return ago ? v + " " + word + " назад" : "через " + v + " " + word;
+};
+
+const formatActionLabel = (
+  summary: { gram?: string; jetton?: { amount: string; kind: "mint" | "transfer" | "burn" } } | undefined,
+  isBurn: boolean,
+): string => {
+  if (!summary) return "";
+  if (isBurn) return "Принудительное сжигание";
+  if (summary.jetton) {
+    const kind = summary.jetton.kind;
+    if (kind === "mint") return "Выпуск жетонов";
+    if (kind === "burn") return "Сжигание жетонов";
+    return "Отправка жетонов";
+  }
+  if (summary.gram === "Обновление") return "Обновление параметров";
+  if (summary.gram) return "Отправка GRAM";
+  return "";
 };
 
 const orderStatusIcon = (executed: boolean, expired: boolean): string => {
@@ -55,6 +85,8 @@ export default function MultisigView() {
   const myAddress = useMyAddress();
   const { info, loading, error } = useMultisigInfo(address);
   const [offset, setOffset] = useState(0);
+  const theme = useTheme();
+  const lineColor = theme.palette.mode === "dark" ? "#66d966" : "#4bb34b";
 
   const parsed = useMemo(() => {
     if (!address || !Address.isFriendly(address)) return undefined;
@@ -127,42 +159,47 @@ export default function MultisigView() {
 
     let icon = "";
     let state = "";
-    let showLink = false;
+    let timeLabel = "";
 
     if (lastOrder.executionStatus === "success") {
       icon = orderStatusIcon(true, false);
       state = "выполнено";
-      showLink = true;
+      timeLabel = "Исполнено";
     } else if (lastOrder.executionStatus === "failed") {
       icon = orderStatusIcon(false, false);
       state = "ошибка выполнения";
-      showLink = true;
+      timeLabel = "Ошибка";
     } else if (lastOrder.errorMessage) {
       if (lastOrder.errorMessage.startsWith("Контракт не активен")) {
         if (isExpired) {
           icon = orderStatusIcon(false, true);
           state = "просрочена";
-          showLink = true;
+          timeLabel = "Просрочена";
         } else {
           state = "контракт ещё не активен";
+          timeLabel = "Ожидание";
         }
       } else if (lastOrder.errorMessage.startsWith("Неудача")) {
         icon = orderStatusIcon(false, false);
         state = "ошибка выполнения";
-        showLink = true;
+        timeLabel = "Ошибка";
       } else {
         icon = orderStatusIcon(false, false);
         state = "недействительна";
+        timeLabel = "Недействительна";
       }
     } else {
       if (isExpired) {
         icon = orderStatusIcon(false, true);
         state = "просрочена";
+        timeLabel = "Просрочена";
       } else if (lastOrder.type === "executed") {
         icon = orderStatusIcon(true, false);
         state = "выполнено";
+        timeLabel = "Исполнено";
+      } else if (lastOrder.type === "pending") {
+        timeLabel = "Создана";
       }
-      if (lastOrder.type === "executed") showLink = true;
     }
 
     let approvals = "";
@@ -181,52 +218,60 @@ export default function MultisigView() {
     }
 
     const isBurn = summary?.jetton?.kind === "burn";
-    const jettonLine =
-      summary && summary.jetton
-        ? summary.jetton.amount +
-          " жетонов · " +
-          (summary.jetton.kind === "mint"
-            ? "выпуск"
-            : summary.jetton.kind === "burn"
-              ? "сжигание"
-              : "отправка")
-        : "";
-    const gramHTML = summary?.gram
-      ? '<div class="orderListItem_gramCol">' + formatGramBalance(summary.gram) + "</div>"
-      : "";
-    let statsHTML = "";
-    if (jettonLine || showLink) {
-      const link = showLink
-        ? '<a class="orderListItem_link" href="https://tonviewer.com/transaction/' +
-          base64toHex(lastOrder.transactionHash) +
-          '" target="_blank">ссылка</a>'
-        : "";
-      statsHTML =
-        '<div class="orderListItem_stats">' +
-        (jettonLine ? '<div class="orderListItem_jetton">' + jettonLine + "</div>" : "") +
-        link +
-        "</div>";
-    }
-
+    const actionLabel = formatActionLabel(summary, isBurn);
     return (
       <Box
         key={orderId + "_" + orderAddress}
         className="multisig_lastOrder"
         onClick={() => orderId !== undefined && multisigPage.order(address!, orderId)}
       >
-        <span
-          className="orderListItem_status"
-          dangerouslySetInnerHTML={{ __html: icon }}
-        />
-        <Box className="orderListItem_info">
-          <Box className="orderListItem_title">
-            {"Заявка #" + truncateOrderId(orderId)}
-            {state ? (
-              <span className="orderListItem_state"> — {state}</span>
+        <Box className="multisig_lastOrderCol multisig_lastOrderColOrder">
+          <Box className="orderListItem_info">
+            <Box className="orderListItem_title">
+              {"#" + truncateOrderId(orderId)}
+            </Box>
+            {approvals && !isExpired ? (
+              <Box className="orderListItem_approvals">{approvals}</Box>
             ) : null}
           </Box>
-          {approvals ? (
-            <Box className="orderListItem_approvals">{approvals}</Box>
+        </Box>
+        <Box className="multisig_lastOrderCol multisig_lastOrderColAction">
+          {actionLabel ? (
+            <Typography className="orderListItem_actionText">{actionLabel}</Typography>
+          ) : null}
+        </Box>
+        <Box className="multisig_lastOrderCol multisig_lastOrderColApprovals">
+          {orderInfo ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
+                {orderInfo.approvalsNum}/{orderInfo.threshold}
+              </span>
+              <div
+                style={{
+                  width: orderInfo.approvalsNum * 10,
+                  height: 3,
+                  backgroundImage: `repeating-linear-gradient(to right, ${lineColor} 0, ${lineColor} 5px, transparent 5px, transparent 10px)`,
+                }}
+              />
+            </div>
+          ) : (
+            <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
+              {threshold}/{signers.length}
+            </span>
+          )}
+        </Box>
+        <Box className="multisig_lastOrderCol multisig_lastOrderColStatus">
+          {state ? (
+            <Box className="orderListItem_statusBadge">
+              <Typography className="orderListItem_statusBadgeText">{state}</Typography>
+            </Box>
+          ) : null}
+        </Box>
+        <Box className="multisig_lastOrderCol multisig_lastOrderColDate">
+          {timeLabel ? (
+            <Typography className="orderListItem_timeText">
+              {timeLabel} {formatRelativeTime(lastOrder.utime)}
+            </Typography>
           ) : null}
         </Box>
         {isBurn ? (
@@ -234,8 +279,6 @@ export default function MultisigView() {
             🔥
           </span>
         ) : null}
-        <span dangerouslySetInnerHTML={{ __html: gramHTML }} />
-        <span dangerouslySetInnerHTML={{ __html: statsHTML }} />
       </Box>
     );
   };
@@ -310,7 +353,16 @@ export default function MultisigView() {
           <Typography className="value">Нет заявок</Typography>
         ) : (
           <Box className="lastOrdersList">
-            {pageOrders.map(renderOrder)}
+            <Box className="lastOrdersTable">
+              <Box className="lastOrdersTableHeader">
+                <Box className="multisig_lastOrderCol">Заявка</Box>
+                <Box className="multisig_lastOrderCol">Действие</Box>
+                <Box className="multisig_lastOrderCol">Подтверждения</Box>
+                <Box className="multisig_lastOrderCol">Статус</Box>
+                <Box className="multisig_lastOrderCol">Дата</Box>
+              </Box>
+              {pageOrders.map(renderOrder)}
+            </Box>
           </Box>
         )}
         <Box className="lastOrdersPagination">

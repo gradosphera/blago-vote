@@ -21,7 +21,7 @@ const TRACE_BATCH_SIZE = 50;
 // Сколько последних заявок обогащать деталями (get-методы, трассы выполнения).
 // Остальные заявки в списке показываются без деталей, чтобы не создавать лишние
 // запросы к API и не ловить rate limit.
-const MAX_ORDER_DETAILS = 5;
+const MAX_ORDER_DETAILS = 50;
 
 interface ToncenterMessage {
   decoded_opcode?: string | null;

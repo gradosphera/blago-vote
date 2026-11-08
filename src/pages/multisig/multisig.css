@@ -29,7 +29,6 @@
   height: 37px;
 }
 
-
 [data-theme="dark"] .multisigPage {
   --text-color: #e5e5ea;
   --text-secondary: #7d7d85;
@@ -276,7 +275,6 @@
 
 /* На узких экранах оставляем минимум 2 колонки (без правила 1 колонки). */
 
-
 .daoBalance {
   white-space: nowrap;
   font-size: 14px;
@@ -389,14 +387,92 @@
   flex-direction: column;
 }
 
+.lastOrdersTable {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.lastOrdersTableHeader {
+  display: table-row;
+}
+
+.lastOrdersTableHeader > .multisig_lastOrderCol {
+  padding: 10px 16px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lastOrdersTableHeader > .multisig_lastOrderCol:last-child {
+  border-right: none;
+}
+
 .multisig_lastOrder {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
   cursor: pointer;
-  padding: 12px 0;
+  display: table-row;
   border-bottom: 1px solid var(--border-color);
+}
+
+.multisig_lastOrder:first-child {
+  border-top: 1px solid var(--border-color);
+}
+
+.multisig_lastOrderCol {
+  display: table-cell;
+  padding: 10px 16px;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.multisig_lastOrderCol:last-child {
+  border-right: none;
+}
+
+.multisig_lastOrderColApprovals {
+  text-align: left;
+}
+
+.approvalsBarWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  display: block;
+}
+
+.approvalLine {
+  display: block;
+  height: 6px;
+  background-image: repeating-linear-gradient(
+    to right,
+    #4bb34b 0px,
+    #4bb34b 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .approvalLine {
+  background-image: repeating-linear-gradient(
+    to right,
+    #66d966 0px,
+    #66d966 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.approvalsBarText {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0;
 }
 
 .orderListItem_status {
@@ -405,26 +481,71 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
 .orderListItem_info {
-  flex: 1;
+  flex: none;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .orderListItem_title {
   color: var(--link-color);
   font-size: 16px;
+  text-align: left;
 }
 
-.orderListItem_state {
+.orderListItem_statusBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  border: 1.5px solid var(--primary);
+  border-radius: 6px;
+  padding: 3px 10px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  margin-left: 0;
+}
+
+.orderListItem_statusBadgeText {
+  margin: 0;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--primary);
+  line-height: 1.4;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.orderListItem_actionText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-color);
+  line-height: 1.4;
+  white-space: nowrap;
+  text-align: left;
+  align-self: flex-start;
+}
+
+.orderListItem_timeText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .orderListItem_approvals {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.4;
+  text-align: left;
 }
 
 .orderListItem_stats {
