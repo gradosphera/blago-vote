@@ -7,23 +7,18 @@ export const TONVIEWER_ADDRESS_URL = `${TONVIEWER}/`;
 export const APP_NAME = "Голос";
 
 // Манифест TonConnect:
-// - На Vercel (blago-vote.vercel.app, vote.gradosphera.org, ton.vote) —
-//   динамический через /api/tonconnect-manifest, чтобы url/iconUrl
-//   соответствовали домену, на котором открыт сайт.
-// - На GitVerse (gradosphera.gitverse.site) — статический файл,
-//   так как нет серверной части для обработки /api/ маршрутов.
+// Динамический через /api/tonconnect-manifest, чтобы url/iconUrl
+// соответствовали домену, на котором открыт сайт. Это работает на Vercel
+// (blago-vote.vercel.app, vote.gradosphera.org, ton.vote) и любых других
+// хостингах с поддержкой serverless-функций.
 //
 // URL обязан быть АБСОЛЮТНЫМ: SDK передаёт manifestUrl в ConnectRequest как
 // есть, без резолва, а кошелёк Telegram (и другие) получив относительную
 // ссылку, отвечают TONCONNECT_URL_MANIFEST_INVALID.
-const GITVERSE_HOST = "gradosphera.gitverse.site";
 
 function getManifestUrl(): string {
   if (typeof window === "undefined") {
-    return `http://localhost/tonconnect-manifest.json`;
-  }
-  if (window.location.hostname === GITVERSE_HOST) {
-    return `${window.location.origin}/tonconnect-manifest.json`;
+    return `http://localhost/api/tonconnect-manifest`;
   }
   return `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`;
 }
