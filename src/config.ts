@@ -6,20 +6,29 @@ export const TONVIEWER = "https://tonviewer.com";
 export const TONVIEWER_ADDRESS_URL = `${TONVIEWER}/`;
 export const APP_NAME = "Голос";
 
-// Манифест TonConnect отдаётся динамически (api/tonconnect-manifest), чтобы
-// url/iconUrl соответствовали домену, на котором открыт сайт. Это позволяет
-// нормально подключать кошелёк сразу на нескольких хостах
-// (blago-vote.vercel.app, vote.gradosphera.org, ton.vote, ...).
+// Манифест TonConnect:
+// - На Vercel (blago-vote.vercel.app, vote.gradosphera.org, ton.vote) —
+//   динамический через /api/tonconnect-manifest, чтобы url/iconUrl
+//   соответствовали домену, на котором открыт сайт.
+// - На GitVerse (gradosphera.gitverse.site) — статический файл,
+//   так как нет серверной части для обработки /api/ маршрутов.
 //
 // URL обязан быть АБСОЛЮТНЫМ: SDK передаёт manifestUrl в ConnectRequest как
 // есть, без резолва, а кошелёк Telegram (и другие) получив относительную
-// ссылку, отвечает TONCONNECT_URL_MANIFEST_INVALID. origin дублируется в
-// query — если кошелёк вырежет его, API определит домен по заголовку Host
-// (см. resolveOrigin в api/tonconnect-manifest.js).
-export const manifestUrl =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`
-    : `http://localhost/api/tonconnect-manifest?origin=${encodeURIComponent("http://localhost")}`;
+// ссылку, отвечают TONCONNECT_URL_MANIFEST_INVALID.
+const GITVERSE_HOST = "gradosphera.gitverse.site";
+
+function getManifestUrl(): string {
+  if (typeof window === "undefined") {
+    return `http://localhost/tonconnect-manifest.json`;
+  }
+  if (window.location.hostname === GITVERSE_HOST) {
+    return `${window.location.origin}/tonconnect-manifest.json`;
+  }
+  return `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`;
+}
+
+export const manifestUrl = getManifestUrl();
 
 export const DEFAULT_CLIENT_V2_ENDPOINT =
   "https://toncenter.com/api/v2/jsonRPC";
