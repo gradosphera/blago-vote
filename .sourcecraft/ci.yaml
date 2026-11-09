@@ -22,13 +22,13 @@ workflows:
                 git config user.name "$SOURCECRAFT_USERNAME"
                 git config user.email "$SOURCECRAFT_USERNAME@noreply.sourcecraft.dev"
                 # Прячем свежую сборку до переключения ветки, чтобы checkout
-                # не конфликтовал с ней (и со старым dist из ветки release)
+                # не конфликтовал с ней (и со старым dist из ветки публикации)
                 mv dist /tmp/dist-build
-                git fetch origin release || true
-                if git rev-parse --verify origin/release >/dev/null 2>&1; then
-                  git checkout -B release origin/release
+                git fetch origin sourcecraft-site || true
+                if git rev-parse --verify origin/sourcecraft-site >/dev/null 2>&1; then
+                  git checkout -B sourcecraft-site origin/sourcecraft-site
                 else
-                  git checkout -B release
+                  git checkout -B sourcecraft-site
                 fi
                 # Очищаем ветку, оставляя только свежую сборку
                 find . -mindepth 1 -maxdepth 1 -not -name .git -not -name dist -exec rm -rf {} +
@@ -36,4 +36,4 @@ workflows:
                 mv /tmp/dist-build dist
                 git add -A
                 git commit -m "Deploy build $SOURCECRAFT_COMMIT_SHORT_SHA from $SOURCECRAFT_COMMIT_REF_NAME" || echo "Nothing to commit"
-                git push origin release
+                git push origin sourcecraft-site
