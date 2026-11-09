@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/tonconnect-manifest.json",
+      "destination": "/api/tonconnect-manifest"
+    },
+    {
+      "source": "/.well-known/tonconnect/manifest.json",
+      "destination": "/api/tonconnect-manifest"
+    },
+    {
       "source": "/((?!api/|assets/|wallet-icons/|favicon.ico|logo.png|vote.png|wallets-v2.json).*)",
       "destination": "/index.html"
     }
