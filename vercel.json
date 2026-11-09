@@ -1,18 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|wallet-icons/|favicon.ico|logo.png|vote.png|tonconnect-manifest.json|wallets-v2.json).*)",
+      "source": "/((?!api/|assets/|wallet-icons/|favicon.ico|logo.png|vote.png|wallets-v2.json).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
-    {
-      "source": "/tonconnect-manifest.json",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Cache-Control", "value": "public, max-age=300" }
-      ]
-    },
     {
       "source": "/wallets-v2.json",
       "headers": [

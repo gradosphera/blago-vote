@@ -10,13 +10,7 @@ export const APP_NAME = "Голос";
 // url/iconUrl соответствовали домену, на котором открыт сайт. Это позволяет
 // нормально подключать кошелёк сразу на нескольких хостах
 // (blago-vote.vercel.app, vote.gradosphera.org, ton.vote, ...).
-const FALLBACK_ORIGIN = "https://blago-vote.vercel.app";
-const MANIFEST_ENDPOINT = `${FALLBACK_ORIGIN}/api/tonconnect-manifest`;
-
-const isLocal =
-  typeof window !== "undefined" &&
-  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
-
+//
 // URL обязан быть АБСОЛЮТНЫМ: SDK передаёт manifestUrl в ConnectRequest как
 // есть, без резолва, а кошелёк Telegram (и другие) получив относительную
 // ссылку, отвечает TONCONNECT_URL_MANIFEST_INVALID. origin дублируется в
@@ -24,10 +18,8 @@ const isLocal =
 // (см. resolveOrigin в api/tonconnect-manifest.js).
 export const manifestUrl =
   typeof window !== "undefined"
-    ? isLocal
-      ? `${FALLBACK_ORIGIN}/tonconnect-manifest.json`
-      : `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`
-    : `${MANIFEST_ENDPOINT}?origin=${encodeURIComponent(FALLBACK_ORIGIN)}`;
+    ? `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`
+    : `http://localhost/api/tonconnect-manifest?origin=${encodeURIComponent("http://localhost")}`;
 
 export const DEFAULT_CLIENT_V2_ENDPOINT =
   "https://toncenter.com/api/v2/jsonRPC";
