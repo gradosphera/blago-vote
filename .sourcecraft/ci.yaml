@@ -11,6 +11,8 @@ workflows:
         cubes:
           - name: install-and-build
             image: node:20
+            env:
+              VITE_BASE: /blago-vote-site/
             script:
               - yarn install --frozen-lockfile
               - yarn build
