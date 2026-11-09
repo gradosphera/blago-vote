@@ -124,7 +124,12 @@ const isFailedToncenterTransaction = (
   if (isSuccessfulToncenterTransaction(transaction)) return false;
 
   const inMsg = transaction.in_msg;
-  return !isExcessMessage(inMsg) && !inMsg?.bounced;
+  // Bounced-транзакции (отражённые сообщения) не являются ошибками — это
+  // нормальное поведение TON при отправке на уничтоженный контракт заявки.
+  // Исключаем bounced и excess-сообщения из числа failed.
+  if (inMsg?.bounced) return false;
+  if (isExcessMessage(inMsg)) return false;
+  return true;
 };
 
 const parseNewOrderInitStateBody = (cell: Cell) => {
@@ -497,7 +502,7 @@ export const checkMultisig = async (
             order: {
               address: {
                 address: orderAddress,
-                isBounceable: true,
+                isBounceable: false,
                 isTestOnly: isTestnet,
               },
               id: orderId,
@@ -552,7 +557,7 @@ export const checkMultisig = async (
             order: {
               address: {
                 address: orderAddress,
-                isBounceable: true,
+                isBounceable: false,
                 isTestOnly: isTestnet,
               },
               id: orderId,
@@ -657,18 +662,17 @@ export const checkMultisig = async (
           resolvedHashes.add(transactionHash);
         }
 
-        for (const trace of result.traces || []) {
-          const transactions = trace.transactions || {};
-          const failed = Object.values(transactions).some(
-            isFailedToncenterTransaction,
-          );
+      for (const trace of result.traces || []) {
+        const transactions = trace.transactions || {};
 
-          for (const transactionHash of batch) {
-            if (failed && transactions[transactionHash]) {
+        for (const transactionHash of batch) {
+          if (transactions[transactionHash]) {
+            if (isFailedToncenterTransaction(transactions[transactionHash])) {
               failedHashes.add(transactionHash);
             }
           }
         }
+      }
       };
 
       const getTraceBatchPromises: Promise<void>[] = [];

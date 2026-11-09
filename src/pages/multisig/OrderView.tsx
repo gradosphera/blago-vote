@@ -90,7 +90,7 @@ export default function OrderView() {
     );
     const a: AddressInfo = {
       address: temp.address,
-      isBounceable: true,
+      isBounceable: false,
       isTestOnly: IS_TESTNET,
     };
     return a;
@@ -207,7 +207,7 @@ export default function OrderView() {
     return (
       <Box key={i} className="daoAvatarGridItem">
         <AddressAvatar
-          address={signer}
+          address={{ ...signer, isBounceable: false }}
           isMe={isMe}
           statusBadge={isSigned ? "✅" : "❌"}
         />
@@ -317,7 +317,7 @@ export default function OrderView() {
                 {action.nftContract && (
                   <Box className="orderActionField">
                     <Typography className="label">NFT адрес:</Typography>
-                    <AddressLink address={{ address: action.nftContract, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                    <AddressLink address={{ address: action.nftContract, isBounceable: false, isTestOnly: IS_TESTNET }} />
                   </Box>
                 )}
                 {action.newOwner && (
@@ -541,7 +541,7 @@ export default function OrderView() {
                     <Box className="daoAvatarGrid">
                       {action.newProposers.map((proposer, pi) => (
                         <Box key={pi} className="daoAvatarGridItem">
-                          <AddressAvatar address={{ address: proposer, isBounceable: true, isTestOnly: IS_TESTNET }} isMe={false} />
+                          <AddressAvatar address={{ address: proposer, isBounceable: false, isTestOnly: IS_TESTNET }} isMe={false} />
                         </Box>
                       ))}
                     </Box>
@@ -563,7 +563,7 @@ export default function OrderView() {
             {action.nominatorOp === "changeValidator" && action.validatorAddress && (
               <Box className="orderActionField">
                 <Typography className="label">Новый валидатор:</Typography>
-                <AddressLink address={{ address: action.validatorAddress, isBounceable: true, isTestOnly: IS_TESTNET }} />
+                <AddressLink address={{ address: action.validatorAddress, isBounceable: false, isTestOnly: IS_TESTNET }} />
               </Box>
             )}
           </Box>

@@ -107,7 +107,7 @@ export default function MultisigView() {
   const parsed = useMemo(() => {
     if (!address || !Address.isFriendly(address)) return undefined;
     const p = Address.parseFriendly(address);
-    p.isBounceable = true;
+    p.isBounceable = false;
     p.isTestOnly = IS_TESTNET;
     return p;
   }, [address]);
@@ -159,7 +159,7 @@ export default function MultisigView() {
       const isMe = equalsMsgAddresses(signer.address, myAddress);
       return (
         <Box key={i} className="daoAvatarGridItem">
-          <AddressAvatar address={signer} isMe={isMe} meOnCircle />
+          <AddressAvatar address={{ ...signer, isBounceable: false }} isMe={isMe} meOnCircle />
         </Box>
       );
     });
@@ -245,20 +245,16 @@ export default function MultisigView() {
         </Box>
         <Box className="multisig_lastOrderCol multisig_lastOrderColApprovals">
           {orderInfo ? (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <div
-                style={{
-                  width: orderInfo.approvalsNum * 12,
-                  height: 3,
-                  backgroundImage: `repeating-linear-gradient(to right, ${lineColor} 0, ${lineColor} 7px, transparent 7px, transparent 14px)`,
-                }}
-              />
-              <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
+            <div className="approvalsBarWrap">
+              {Array.from({ length: orderInfo.approvalsNum }, (_, i) => (
+                <Box key={i} className="approvalSegment" />
+              ))}
+              <span className="approvalsBarText">
                 {orderInfo.approvalsNum}/{orderInfo.threshold}
               </span>
             </div>
           ) : (
-            <span style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.4 }}>
+            <span className="approvalsBarText">
               {threshold}/{signers.length}
             </span>
           )}
@@ -277,7 +273,6 @@ export default function MultisigView() {
             </Typography>
           ) : null}
         </Box>
-
       </Box>
     );
   };

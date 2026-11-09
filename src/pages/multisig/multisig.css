@@ -440,31 +440,21 @@
 .approvalsBarWrap {
   display: flex;
   align-items: center;
-  gap: 6px;
-  display: block;
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 
-.approvalLine {
-  display: block;
+.approvalSegment {
   height: 6px;
-  background-image: repeating-linear-gradient(
-    to right,
-    #4bb34b 0px,
-    #4bb34b 6px,
-    transparent 6px,
-    transparent 12px
-  );
+  border-radius: 3px;
   flex-shrink: 0;
+  width: 28px;
+  background: #4bb34b;
+  transition: background 0.2s;
 }
 
-[data-theme="dark"] .approvalLine {
-  background-image: repeating-linear-gradient(
-    to right,
-    #66d966 0px,
-    #66d966 6px,
-    transparent 6px,
-    transparent 12px
-  );
+[data-theme="dark"] .approvalSegment {
+  background: #66d966;
 }
 
 .approvalsBarText {
@@ -543,7 +533,9 @@
   background: color-mix(in srgb, #ff5c5c 15%, transparent);
 }
 
-[data-theme="dark"] .orderListItem_statusBadge.status-error .orderListItem_statusBadgeText {
+[data-theme="dark"]
+  .orderListItem_statusBadge.status-error
+  .orderListItem_statusBadgeText {
   color: #ff5c5c;
 }
 
@@ -552,7 +544,9 @@
   background: color-mix(in srgb, #ffc04d 15%, transparent);
 }
 
-[data-theme="dark"] .orderListItem_statusBadge.status-expired .orderListItem_statusBadgeText {
+[data-theme="dark"]
+  .orderListItem_statusBadge.status-expired
+  .orderListItem_statusBadgeText {
   color: #ffc04d;
 }
 
@@ -653,6 +647,102 @@
 .lastOrdersPagination button:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* Mobile responsive - orders as cards */
+@media (max-width: 800px) {
+  .lastOrdersTableHeader {
+    display: none !important;
+  }
+
+  .multisig_lastOrder {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-rows: auto auto auto auto !important;
+    gap: 12px !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    margin-bottom: 12px !important;
+    background: var(--bg-secondary) !important;
+    padding: 14px 16px !important;
+  }
+
+  .multisig_lastOrderCol {
+    display: block !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  /* Order + Status в первой строке */
+  .multisig_lastOrderColOrder {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .multisig_lastOrderColStatus {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+  }
+
+  /* Action */
+  .multisig_lastOrderColAction {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    padding-bottom: 4px !important;
+  }
+
+  .orderListItem_actionText {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Approvals */
+  .multisig_lastOrderColApprovals {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    padding: 4px 0 !important;
+  }
+
+  .approvalsBarWrap {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+  }
+
+  .approvalSegment {
+    height: 6px !important;
+    width: 80px !important;
+  }
+
+  .approvalsBarText {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    white-space: nowrap !important;
+  }
+
+  /* Date */
+  .multisig_lastOrderColDate {
+    grid-column: 1 / -1 !important;
+    grid-row: 4 !important;
+    padding-top: 4px !important;
+  }
+
+  .orderListItem_timeText {
+    font-size: 13px !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .orderListItem_title {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+  }
+
+  .orderListItem_statusBadge {
+    padding: 4px 12px !important;
+  }
 }
 
 /* AVATAR GRID */
