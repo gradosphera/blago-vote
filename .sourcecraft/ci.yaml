@@ -23,10 +23,13 @@ workflows:
                 git config user.email "$SOURCECRAFT_USERNAME@noreply.sourcecraft.dev"
                 # Прячем свежую сборку до переключения ветки
                 mv dist /tmp/dist-build
-                # Адрес репозитория сайта — тот же хост и креды, что у origin,
-                # меняется только путь к репозиторию
-                ORIGIN_URL=$(git remote get-url origin)
-                SITE_URL=${ORIGIN_URL/gradosphera\/blago-vote.git/gradosphera/blago-vote-site.git}
+                # URL репозитория сайта: с токеном из секрета, иначе fallback на креды origin
+                if [ -n "$SITE_DEPLOY_TOKEN" ]; then
+                  SITE_URL="https://x-access-token:${SITE_DEPLOY_TOKEN}@git.sourcecraft.dev/gradosphera/blago-vote-site.git"
+                else
+                  ORIGIN_URL=$(git remote get-url origin)
+                  SITE_URL=${ORIGIN_URL/gradosphera\/blago-vote.git/gradosphera/blago-vote-site.git}
+                fi
                 git remote add site-origin "$SITE_URL" 2>/dev/null || git remote set-url site-origin "$SITE_URL"
                 git fetch site-origin main || true
                 if git rev-parse --verify site-origin/main >/dev/null 2>&1; then
