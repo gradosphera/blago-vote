@@ -19,9 +19,16 @@ export const useMultisigInfo = (address: string | undefined) => {
   const load = useCallback(
     async (isFirst: boolean) => {
       if (!address) return;
+      let parsedAddress: any;
+      try {
+        parsedAddress = Address.parseFriendly(address);
+      } catch (e: any) {
+        if (isFirst) setError("Неверный адрес мультикошелька");
+        return;
+      }
       try {
         const multisigInfo = await checkMultisig(
-          Address.parseFriendly(address),
+          parsedAddress,
           MULTISIG_CODE,
           MULTISIG_ORDER_CODE,
           IS_TESTNET,

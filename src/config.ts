@@ -228,3 +228,9 @@ export const BLACKLISTED_PROPOSALS = [
   "EQAGgwt5WA6fBcD_OgEKXOEDLjto5X9SyOmOP-NOrn19sxtZ",
   "EQCHZNmiqQvgbToCjuqwGJuiw7OEbQYuY6T5Wv4dNnYeZ8XW",
 ];
+
+// Скрытые заявки мультисиг-кошелька: [{ address: "адрес_кошелька", orderId: "id_заявки" }]
+// address и orderId — строки (bigint не сериализуется в JSON)
+export const BLACKLISTED_ORDERS: { address: string; orderId: string }[] = [
+  { address: "EQAbRLmFnI7y5BUmSVvxsz3X4Ejy50uMkgvXPmevthl5K3n9", orderId: "33" },
+];

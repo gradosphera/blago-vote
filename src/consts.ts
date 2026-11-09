@@ -33,7 +33,7 @@ export const routes = {
   multisigCreate: "multisig/new",
   multisigAddress: "multisig/:address",
   multisigNewOrder: "multisig/:address/new-order",
-  multisigOrder: "multisig/:address/order/:orderId",
+  multisigOrder: "multisig/:address/*",
 };
 
 export const flatRoutes = _.map(routes, (value) => {

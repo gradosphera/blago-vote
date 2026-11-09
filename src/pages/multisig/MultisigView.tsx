@@ -14,6 +14,7 @@ import {
 } from "multisig/utils/utils";
 import { addOpenedMultisig } from "multisig/utils/MultisigRegistry";
 import { IS_TESTNET } from "multisig/constants";
+import { BLACKLISTED_ORDERS } from "config";
 import { LastOrder, isLastOrderExpired } from "multisig/multisig/MultisigChecker";
 
 const ORDERS_PAGE_SIZE = 5;
@@ -123,6 +124,28 @@ export default function MultisigView() {
   useEffect(() => {
     if (!parsed) navigate("/multisig", { replace: true });
   }, [parsed, navigate]);
+
+  // Текущий адрес мультикошелька в сыром виде для сравнения — ДО раннего возврата
+  const currentAddressRaw = useMemo(() => {
+    if (!parsed) return undefined;
+    return parsed.address.toRawString();
+  }, [parsed]);
+
+  const hiddenOrderSet = useMemo(() => {
+    if (!currentAddressRaw) return new Set<string>();
+    return new Set(
+      BLACKLISTED_ORDERS
+        .filter((entry) => {
+          try {
+            const configRaw = Address.parse(entry.address).toRawString();
+            return configRaw === currentAddressRaw;
+          } catch {
+            return false;
+          }
+        })
+        .map((entry) => entry.orderId),
+    );
+  }, [currentAddressRaw, BLACKLISTED_ORDERS]);
 
   if (!parsed) return null;
 
@@ -277,7 +300,11 @@ export default function MultisigView() {
     );
   };
 
-  const pageOrders = lastOrders.slice(offset, offset + ORDERS_PAGE_SIZE);
+  const visibleOrders = (lastOrders ?? []).filter(
+    (o) => !o.order?.id || !hiddenOrderSet.has(o.order.id.toString()),
+  );
+  const totalFiltered = visibleOrders.length;
+  const pageOrders = visibleOrders.slice(offset, offset + ORDERS_PAGE_SIZE);
 
   return (
     <Box className="multisigPage">
@@ -367,7 +394,7 @@ export default function MultisigView() {
             Назад
           </Button>
           <Button
-            disabled={offset + ORDERS_PAGE_SIZE >= lastOrders.length}
+            disabled={offset + ORDERS_PAGE_SIZE >= totalFiltered}
             onClick={() => setOffset((o) => o + ORDERS_PAGE_SIZE)}
           >
             Далее

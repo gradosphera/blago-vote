@@ -29,7 +29,7 @@ export const appNavigation = {
     order: (address: string, orderId: string | bigint) =>
       toAbs(routes.multisigOrder)
         .replace(":address", address)
-        .replace(":orderId", orderId.toString()),
+        .replace("*", orderId.toString()),
     create: () => toAbs(routes.multisigCreate),
     import: () => toAbs(routes.multisigImport),
   },

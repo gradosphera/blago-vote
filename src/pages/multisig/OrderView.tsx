@@ -1,7 +1,7 @@
 import { Box, Button, Typography, CircularProgress } from "@mui/material";
 import "./multisig.css";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Address, fromNano } from "@ton/core";
 import { useMultisigInfo } from "multisig/useMultisigInfo";
 import { useMyAddress } from "multisig/useMyAddress";
@@ -60,24 +60,48 @@ const formatDateRu = (date: Date): string => {
 };
 
 export default function OrderView() {
-  const { address, orderId } = useParams();
+  const params = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { multisigPage } = useAppNavigation();
   const myAddress = useMyAddress();
   const { send, sending } = useMultisigSendTransaction();
-  const { info, loading } = useMultisigInfo(address);
+  
+  // Извлекаем address из params
+  const address = params.address;
+  
+  // Извлекаем orderId из pathname: /multisig/:address/:orderId
+  // Wildcard route "*" хранится в params["*"], но это ненадёжно
+  const orderIdFromParams = params.orderId;
+  const orderIdBig = useMemo(() => {
+    try {
+      const parts = location.pathname.split("/").filter(Boolean);
+      // pathname: multisig/EQAb.../34 → parts = ["multisig", "EQAb...", "34"]
+      const orderIdStr = parts[parts.length - 1];
+      const id = orderIdFromParams ?? orderIdStr;
+      if (!id || typeof id !== "string") return undefined;
+      const big = BigInt(id);
+      return big > 0n ? big : undefined;
+    } catch {
+      return undefined
+    }
+  }, [orderIdFromParams, location.pathname]);
+
+  // Безопасная передача address в hook — проверяем валидность
+  const validAddress = useMemo(() => {
+    if (!address) return undefined;
+    try {
+      Address.parseFriendly(address);
+      return address;
+    } catch {
+      return undefined;
+    }
+  }, [address]);
+  const { info, loading } = useMultisigInfo(validAddress);
   const [orderInfo, setOrderInfo] = useState<MultisigOrderInfo | undefined>(
     undefined,
   );
   const [err, setErr] = useState<string | null>(null);
-
-  const orderIdBig = useMemo(() => {
-    try {
-      return orderId ? BigInt(orderId) : undefined;
-    } catch {
-      return undefined;
-    }
-  }, [orderId]);
 
   const orderAddress = useMemo<AddressInfo | undefined>(() => {
     if (!address || orderIdBig === undefined) return undefined;

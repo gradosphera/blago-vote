@@ -193,15 +193,6 @@ export const useRouter = () => {
                 ),
               },
               {
-                path: toAbs(routes.multisigAddress),
-                errorElement: <RouteError />,
-                element: (
-                  <Suspense fallback={<PageFallback />}>
-                    <MultisigView />
-                  </Suspense>
-                ),
-              },
-              {
                 path: toAbs(routes.multisigNewOrder),
                 errorElement: <RouteError />,
                 element: (
@@ -216,6 +207,15 @@ export const useRouter = () => {
                 element: (
                   <Suspense fallback={<PageFallback />}>
                     <OrderView />
+                  </Suspense>
+                ),
+              },
+              {
+                path: toAbs(routes.multisigAddress),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <MultisigView />
                   </Suspense>
                 ),
               },
