@@ -44,7 +44,9 @@ export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=300");
+  // Per-domain caching: cache different responses for different Host headers
+  res.setHeader("Vary", "Host");
+  res.setHeader("Cache-Control", "public, max-age=0, s-maxage=60, must-revalidate");
 
   if (req.method === "OPTIONS") {
     res.status(204).end();
