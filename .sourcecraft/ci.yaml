@@ -21,19 +21,27 @@ workflows:
                 cd $SOURCECRAFT_WORKSPACE
                 git config user.name "$SOURCECRAFT_USERNAME"
                 git config user.email "$SOURCECRAFT_USERNAME@noreply.sourcecraft.dev"
-                # Прячем свежую сборку до переключения ветки, чтобы checkout
-                # не конфликтовал с ней (и со старым dist из ветки публикации)
+                # Прячем свежую сборку до переключения ветки
                 mv dist /tmp/dist-build
-                git fetch origin sourcecraft-site || true
-                if git rev-parse --verify origin/sourcecraft-site >/dev/null 2>&1; then
-                  git checkout -B sourcecraft-site origin/sourcecraft-site
+                # Адрес репозитория сайта — тот же хост и креды, что у origin,
+                # меняется только путь к репозиторию
+                ORIGIN_URL=$(git remote get-url origin)
+                SITE_URL=${ORIGIN_URL/gradosphera\/blago-vote.git/gradosphera/blago-vote-site.git}
+                git remote add site-origin "$SITE_URL" 2>/dev/null || git remote set-url site-origin "$SITE_URL"
+                git fetch site-origin main || true
+                if git rev-parse --verify site-origin/main >/dev/null 2>&1; then
+                  git checkout -B main site-origin/main
                 else
-                  git checkout -B sourcecraft-site
+                  # Первый деплой: репозиторий сайта ещё пустой
+                  git checkout --orphan main
                 fi
                 # Очищаем ветку, оставляя только свежую сборку
                 find . -mindepth 1 -maxdepth 1 -not -name .git -not -name dist -exec rm -rf {} +
                 rm -rf dist
                 mv /tmp/dist-build dist
+                # Конфиг публикации сайта для blago-vote-site
+                mkdir -p .sourcecraft
+                printf 'site:\n  root: dist\n  ref: main\n' > .sourcecraft/sites.yaml
                 git add -A
                 git commit -m "Deploy build $SOURCECRAFT_COMMIT_SHORT_SHA from $SOURCECRAFT_COMMIT_REF_NAME" || echo "Nothing to commit"
-                git push origin sourcecraft-site
+                git push site-origin main
