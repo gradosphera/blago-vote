@@ -78,7 +78,7 @@
 
 .daoMultisigItem {
   width: calc(100% / 4 - 15px);
-  height: 270px;
+  aspect-ratio: 1 / 1;
   box-sizing: border-box;
   border-radius: 13px;
   cursor: pointer;
@@ -90,6 +90,16 @@
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   position: relative;
+}
+
+.daoMultisigItem .container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .daoMultisigItem:hover {
@@ -107,7 +117,7 @@
 
 .daoMultisigAvatarWrap {
   position: relative;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .daoMultisigAvatarWrap .badge {
@@ -180,29 +190,22 @@
 }
 
 .daoMultisigName {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 24px;
   text-align: center;
   color: var(--text-color);
   word-break: break-word;
+  width: 100%;
 }
 
 .daoMultisigAddress {
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--text-color);
   margin-top: 4px;
-}
-
-.daoMultisigAddress a {
-  color: var(--text-secondary);
-  text-decoration: none;
-}
-
-.daoMultisigAddress a:hover {
-  color: var(--link-color);
-  text-decoration: underline;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .daoMultisigBalances {
@@ -221,7 +224,7 @@
 /* Карточка «Создать мультикошелек» — как «Создать новое ДАО» */
 .daoMultisigCreate {
   width: calc(100% / 4 - 15px);
-  height: 270px;
+  aspect-ratio: 1 / 1;
   box-sizing: border-box;
   border-radius: 13px;
   cursor: pointer;
@@ -270,6 +273,12 @@
   }
   .daoMultisigCreate {
     width: calc(100% / 2 - 10px);
+  }
+  .daoMultisigName {
+    font-size: 16px;
+  }
+  .daoMultisigAddress {
+    font-size: 14px;
   }
 }
 
@@ -326,6 +335,22 @@
 .multisigCardBalance {
   font-size: 18px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.multisigCardBalanceLogo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.multisigCardBalances {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .multisigSection {

@@ -8,7 +8,6 @@ import {
 import { mock } from "mock/mock";
 import { AiFillEyeInvisible } from "react-icons/ai";
 import { useIntersectionObserver } from "react-intersection-observer-hook";
-import TextOverflow from "react-text-overflow";
 import { useAppNavigation } from "router/navigation";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 import { Dao } from "types";
@@ -61,7 +60,7 @@ export const DaoListItem = ({ dao }: { dao: Dao }) => {
           <StyledFlexColumn>
             <StyledDaoAvatar src={metadataArgs?.avatar} />
             <Typography className="title">
-              <TextOverflow text={`${name}${mockPrefix}`} />
+              {name}{mockPrefix}
             </Typography>
             <Address dao={dao} />
           </StyledFlexColumn>

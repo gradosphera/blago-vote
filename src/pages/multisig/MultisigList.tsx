@@ -9,16 +9,15 @@ import {
   loadHiddenMultisigs,
   addHiddenMultisig,
   fetchMultisigStatus,
-  fetchJettonBalance,
   mapWithConcurrency,
   MultisigStatus,
   RegistryEntry,
   RegistryJetton,
 } from "multisig/utils/MultisigRegistry";
 import { MULTISIG_CODE, IS_TESTNET, GRAM_LOGO_URL } from "multisig/constants";
-import { Address, fromNano } from "@ton/core";
-import { AddressLink } from "./Avatar";
+import { Address } from "@ton/core";
 import { MultisigInfo } from "./MultisigInfo";
+import { makeElipsisAddress } from "utils";
 
 interface DaoListItem {
   name: string;
@@ -35,65 +34,11 @@ const PENDING_STATUS: MultisigStatus = {
   role: "none",
 };
 
-const formatJettonAmount = (balance: string, decimals: number): string => {
-  const value = BigInt(balance || "0");
-  if (decimals <= 0) return value.toString();
-  const divisor = 10n ** BigInt(decimals);
-  const whole = value / divisor;
-  const frac = value % divisor;
-  if (frac === 0n) return whole.toString();
-  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
-  return whole.toString() + "." + fracStr;
-};
-
-const balancesHTML = (
-  item: DaoListItem,
-  result?: { status: MultisigStatus; jettonBalance: string },
-): string => {
-  const lines: string[] = [];
-  if (!result) {
-    lines.push("Загрузка...");
-  } else if (result.status.ok) {
-    if (result.status.isMultisig) {
-      lines.push(
-        '<span class="daoBalance"><img class="daoBalanceLogo" src="' +
-          GRAM_LOGO_URL +
-          '" alt=""> ' +
-          fromNano(BigInt(result.status.balance || "0")) +
-          " GRAM</span>",
-      );
-      if (item.jetton && result.jettonBalance !== "") {
-        lines.push(
-          '<span class="daoBalance"><img class="daoBalanceLogo" src="' +
-            (item.jetton.logo || "") +
-            '" alt=""> ' +
-            formatJettonAmount(
-              result.jettonBalance,
-              item.jetton.decimals ?? 0,
-            ) +
-            " " +
-            item.jetton.name +
-            "</span>",
-        );
-      }
-    } else {
-      lines.push("не мультикошелек");
-    }
-  } else {
-    lines.push(result.status.error || "Ошибка проверки");
-  }
-  return lines
-    .map((l) => "<div>" + l + "</div>")
-    .join("");
-};
-
 export function MultisigList() {
   const { multisigPage } = useAppNavigation();
   const myAddress = useMyAddress();
   const [items, setItems] = useState<DaoListItem[]>([]);
-  const [results, setResults] = useState<
-    Array<{ status: MultisigStatus; jettonBalance: string } | null>
-  >([]);
+  const [results, setResults] = useState<MultisigStatus[] | null[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -176,21 +121,12 @@ export function MultisigList() {
         entries,
         6,
         async (item: DaoListItem) => {
-          const status = await fetchMultisigStatus(
+          return await fetchMultisigStatus(
             item.address,
             MULTISIG_CODE,
             IS_TESTNET,
             myAddress,
           );
-          let jettonBalance = "";
-          if (status.isMultisig && item.jetton) {
-            jettonBalance = await fetchJettonBalance(
-              item.jetton.address,
-              item.address,
-              IS_TESTNET,
-            );
-          }
-          return { status, jettonBalance };
         },
       );
       setResults(computed);
@@ -237,7 +173,7 @@ export function MultisigList() {
           info.isTestOnly = IS_TESTNET;
           const avatar = item.logo || item.jetton?.logo || GRAM_LOGO_URL;
           const removeBadge =
-            item.mine && result?.status.ok && !result.status.isMultisig ? (
+            item.mine && result?.ok && !result.isMultisig ? (
               <button
                 className="daoMultisigRemoveBadge"
                 title="Скрыть карточку"
@@ -258,41 +194,34 @@ export function MultisigList() {
               onClick={() => onCardClick(item.address)}
             >
               {removeBadge}
-              <Box className="daoMultisigAvatarWrap">
-                <Box className="daoMultisigAvatar">
-                  <img src={avatar} alt="" />
+              <Box className="container">
+                <Box className="daoMultisigAvatarWrap">
+                  <Box className="daoMultisigAvatar">
+                    <img src={avatar} alt="" />
+                  </Box>
+                  {result?.role &&
+                    result.role !== "none" && (
+                      <span
+                        className={
+                          "badge " +
+                          (result.role === "signer"
+                            ? "badgeSigner"
+                            : "badgeProposer")
+                        }
+                      >
+                        {result.role === "signer"
+                          ? "Подписант"
+                          : "Инициатор"}
+                      </span>
+                    )}
                 </Box>
-                {result?.status.role &&
-                  result.status.role !== "none" && (
-                    <span
-                      className={
-                        "badge " +
-                        (result.status.role === "signer"
-                          ? "badgeSigner"
-                          : "badgeProposer")
-                      }
-                    >
-                      {result.status.role === "signer"
-                        ? "Подписант"
-                        : "Инициатор"}
-                    </span>
-                  )}
+                <Box className="daoMultisigName">
+                  {item.name || "Мультикошелек"}
+                </Box>
+                <Box className="daoMultisigAddress">
+                  {makeElipsisAddress(item.address, 6)}
+                </Box>
               </Box>
-              <Box className="daoMultisigName">
-                {item.name || "Мультикошелек"}
-              </Box>
-              <Box className="daoMultisigAddress">
-                <AddressLink address={info} />
-              </Box>
-              <Box
-                className="daoMultisigBalances"
-                dangerouslySetInnerHTML={{
-                  __html: balancesHTML(
-                    item,
-                    result === null ? undefined : result,
-                  ),
-                }}
-              />
             </Box>
           );
         })}

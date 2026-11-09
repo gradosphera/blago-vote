@@ -1,6 +1,6 @@
 import { Box, Button, Typography, CircularProgress, useTheme } from "@mui/material";
 import "./multisig.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Address, fromNano } from "@ton/core";
 import { useMultisigInfo } from "multisig/useMultisigInfo";
@@ -12,8 +12,13 @@ import {
   addressToString,
   AddressInfo,
 } from "multisig/utils/utils";
-import { addOpenedMultisig } from "multisig/utils/MultisigRegistry";
-import { IS_TESTNET } from "multisig/constants";
+import {
+  addOpenedMultisig,
+  fetchJettonBalance,
+  RegistryJetton,
+  getSnapshotEntries,
+} from "multisig/utils/MultisigRegistry";
+import { IS_TESTNET, GRAM_LOGO_URL } from "multisig/constants";
 import { BLACKLISTED_ORDERS } from "config";
 import { LastOrder, isLastOrderExpired } from "multisig/multisig/MultisigChecker";
 
@@ -95,6 +100,28 @@ const orderStatusIcon = (executed: boolean, expired: boolean): string => {
   );
 };
 
+const formatJettonAmount = (balance: string, decimals: number): string => {
+  const value = BigInt(balance || "0");
+  if (decimals <= 0) return value.toString();
+  const divisor = 10n ** BigInt(decimals);
+  const whole = value / divisor;
+  const frac = value % divisor;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+  return whole.toString() + "." + fracStr;
+};
+
+const findJettonForMultisig = (multisigAddress: string): RegistryJetton | undefined => {
+  const rawAddress = Address.parseFriendly(multisigAddress).address.toRawString();
+  for (const entry of getSnapshotEntries()) {
+    const entryRaw = Address.parseFriendly(entry.address).address.toRawString();
+    if (entryRaw === rawAddress && entry.jetton) {
+      return entry.jetton;
+    }
+  }
+  return undefined;
+};
+
 export default function MultisigView() {
   const { address } = useParams();
   const navigate = useNavigate();
@@ -102,6 +129,8 @@ export default function MultisigView() {
   const myAddress = useMyAddress();
   const { info, loading, error } = useMultisigInfo(address);
   const [offset, setOffset] = useState(0);
+  const [jettonBalance, setJettonBalance] = useState<string>("");
+  const [jettonInfo, setJettonInfo] = useState<RegistryJetton | undefined>(undefined);
   const theme = useTheme();
   const lineColor = theme.palette.mode === "dark" ? "#66d966" : "#4bb34b";
 
@@ -116,6 +145,19 @@ export default function MultisigView() {
   useEffect(() => {
     if (parsed) addOpenedMultisig(addressToString(parsed));
   }, [parsed, address]);
+
+  // Загрузка баланса жетона для этого мультикошелька
+  useEffect(() => {
+    if (!address || !info) return;
+    const j = findJettonForMultisig(address);
+    if (!j) {
+      setJettonInfo(undefined);
+      setJettonBalance("");
+      return;
+    }
+    setJettonInfo(j);
+    fetchJettonBalance(j.address, address, IS_TESTNET).then(setJettonBalance);
+  }, [address, info]);
 
   useDnsNames(
     info ? [...info.signers, ...info.proposers].map((a) => a.address) : [],
@@ -324,9 +366,18 @@ export default function MultisigView() {
         <Typography className="multisigCardAddress">
           <AddressLink address={parsed} />
         </Typography>
-        <Typography className="multisigCardBalance">
-          {fromNano(info.tonBalance)} GRAM
-        </Typography>
+        <Box className="multisigCardBalances">
+          <Typography className="multisigCardBalance">
+            <img className="multisigCardBalanceLogo" src={GRAM_LOGO_URL} alt="" />
+            {fromNano(info.tonBalance)} GRAM
+          </Typography>
+          {jettonInfo && jettonBalance ? (
+            <Typography className="multisigCardBalance">
+              <img className="multisigCardBalanceLogo" src={jettonInfo.logo || ""} alt="" />
+              {formatJettonAmount(jettonBalance, jettonInfo.decimals ?? 0)} {jettonInfo.name}
+            </Typography>
+          ) : null}
+        </Box>
       </Box>
 
       <Box className="thresholdBarWrap">

@@ -40,6 +40,9 @@ export const StyledDao = styled(Box)(({ theme }) => ({
     width: "100%",
     textAlign: "center",
     color: theme.typography.h2.color,
+    overflowWrap: "break-word",
+    wordBreak: "break-word",
+    whiteSpace: "normal",
   },
   ".address-value": {
     textAlign: "center",
@@ -61,6 +64,9 @@ export const StyledDao = styled(Box)(({ theme }) => ({
     width: "calc(100% / 2 - 5px)",
     ".title": {
       fontSize: 16,
+      overflowWrap: "break-word",
+      wordBreak: "break-word",
+      whiteSpace: "normal",
     },
 
     ".address-value": {
