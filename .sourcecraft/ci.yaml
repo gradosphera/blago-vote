@@ -16,6 +16,8 @@ workflows:
               - yarn build
 
           - name: publish-release
+            env:
+              SITE_DEPLOY_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
             script:
               - |
                 cd $SOURCECRAFT_WORKSPACE
