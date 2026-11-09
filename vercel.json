@@ -9,7 +9,15 @@
       "destination": "/api/tonconnect-manifest"
     },
     {
-      "source": "/((?!api/|assets/|wallet-icons/|favicon.ico|logo.png|vote.png|wallets-v2.json).*)",
+      "source": "/blago-vote/tonconnect-manifest.json",
+      "destination": "/api/tonconnect-manifest"
+    },
+    {
+      "source": "/blago-vote/.well-known/tonconnect/manifest.json",
+      "destination": "/api/tonconnect-manifest"
+    },
+    {
+      "source": "/((?!api/|assets/|wallet-icons/|favicon.ico|logo.png|vote.png|wallets-v2.json|tonconnect-manifest.json|\\.well-known/tonconnect).*)",
       "destination": "/index.html"
     }
   ],
