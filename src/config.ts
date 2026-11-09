@@ -25,7 +25,9 @@ function getManifestUrl(): string {
   if (window.location.hostname === GITVERSE_HOST) {
     return `${window.location.origin}/tonconnect-manifest.json`;
   }
-  return `${window.location.origin}/api/tonconnect-manifest?origin=${encodeURIComponent(window.location.origin)}`;
+  // Vercel rewrite will forward this to /api/tonconnect-manifest
+  // The API will determine the correct origin from the Host header
+  return `${window.location.origin}/tonconnect-manifest.json`;
 }
 
 export const manifestUrl = getManifestUrl();

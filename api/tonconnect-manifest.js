@@ -4,40 +4,11 @@
 // и на любом другом хосте, где развёрнут фронтенд.
 const FALLBACK_ORIGIN = "https://blago-vote.vercel.app";
 
-function parseQuery(url) {
-  const query = {};
-  const idx = url.indexOf("?");
-  if (idx === -1) return query;
-  const queryString = url.slice(idx + 1);
-  const pairs = queryString.split("&");
-  for (const pair of pairs) {
-    const [key, value] = pair.split("=");
-    if (key) {
-      query[decodeURIComponent(key)] = value ? decodeURIComponent(value) : "";
-    }
-  }
-  return query;
-}
-
 function resolveOrigin(req) {
-  // Parse URL to get query params
-  const url = req.url || "";
-  const query = parseQuery(url);
-
-  // 1. Try query param (most reliable when client passes it)
-  if (typeof query.origin === "string" && query.origin.length > 0) {
-    try {
-      const parsed = new URL(query.origin);
-      if (parsed.protocol === "https:" || 
-          (parsed.protocol === "http:" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"))) {
-        return parsed.origin;
-      }
-    } catch {}
-  }
-
-  // 2. Try Host header (Vercel sets this to the actual domain)
+  // Try Host header (Vercel sets this to the actual domain being accessed)
   const headers = req.headers || {};
   const host = typeof headers.host === "string" ? headers.host : "";
+  
   if (host.length > 0) {
     // Handle "host:port" format
     const hostname = host.split(":")[0];
@@ -53,15 +24,21 @@ function resolveOrigin(req) {
           (parsed.protocol === "http:" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"))) {
         return origin;
       }
-    } catch {}
+    } catch (e) {
+      console.error("[tonconnect-manifest] Invalid origin from host:", origin, e);
+    }
   }
 
-  // 3. Fallback
+  // Fallback
+  console.warn("[tonconnect-manifest] Using fallback origin:", FALLBACK_ORIGIN);
   return FALLBACK_ORIGIN;
 }
 
 export default function handler(req, res) {
   const origin = resolveOrigin(req);
+
+  // Log for debugging (visible in Vercel function logs)
+  console.log("[tonconnect-manifest] Host:", req.headers.host, "→ Origin:", origin);
 
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
