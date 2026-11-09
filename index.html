@@ -91,6 +91,14 @@
   </script>
   <div id="root"></div>
 
+  <!-- TonConnect manifest для GitVerse (статический хостинг, клиентский Blob URL) -->
+  <script type="module">
+    const origin = window.location.origin;
+    const manifest = { url: origin, name: "Голос", iconUrl: `${origin}/logo.png` };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    window.__TONCONNECT_MANIFEST_URL__ = URL.createObjectURL(blob);
+  </script>
+
   <script type="module" src="./src/polyfills.ts"></script>
   <script type="module" src="./src/main.tsx"></script>
 

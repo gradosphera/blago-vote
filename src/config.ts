@@ -22,11 +22,12 @@ function getManifestUrl(): string {
   if (typeof window === "undefined") {
     return `http://localhost/tonconnect-manifest.json`;
   }
+  // На GitVerse — клиентский Blob URL (статический хостинг без серверной части)
   if (window.location.hostname === GITVERSE_HOST) {
-    return `${window.location.origin}/tonconnect-manifest.json`;
+    return window.__TONCONNECT_MANIFEST_URL__ || `${window.location.origin}/tonconnect-manifest.json`;
   }
-  // Vercel rewrite will forward this to /api/tonconnect-manifest
-  // The API will determine the correct origin from the Host header
+  // На Vercel — rewrite перенаправит на /api/tonconnect-manifest
+  // API определит домен из Host header
   return `${window.location.origin}/tonconnect-manifest.json`;
 }
 
