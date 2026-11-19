@@ -27,7 +27,7 @@ import {
   AppTooltip,
   TgIcon,
 } from "components";
-import { makeElipsisAddress, parseLanguage, extractProposalTemplate } from "utils";
+import { makeElipsisAddress, parseLanguage, sanitizeDaoName, extractProposalTemplate } from "utils";
 import { ProposalStatus as ProposalStatusEnum } from "types";
 import { useProposalPageTranslations } from "i18n/hooks/useProposalPageTranslations";
 import { MOBILE_WIDTH } from "consts";
@@ -338,7 +338,7 @@ const DaoInfo = () => {
         className="dao-name"
       >
         <OverflowWithTooltip
-          text={parseLanguage(daoMetadata?.metadataArgs.name)}
+          text={sanitizeDaoName(parseLanguage(daoMetadata?.metadataArgs.name))}
         />
       </StyledDaoLink>
     </StyledFlexRow>

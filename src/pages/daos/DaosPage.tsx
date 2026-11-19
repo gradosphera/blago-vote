@@ -1,3 +1,4 @@
+import { Box, Typography } from "@mui/material";
 import { List, LoadMore } from "components";
 import {
   StyledEmptyText,
@@ -7,7 +8,6 @@ import {
 } from "styles";
 import {
   StyledAboutSection,
-  StyledDao,
   StyledDaoContent,
   StyledDaosAmount,
   StyledDaosList,
@@ -29,7 +29,6 @@ import { useDaosPageTranslations } from "i18n/hooks/useDaosPageTranslations";
 import { useDaosQuery } from "query/getters";
 import { useAppNavigation } from "router/navigation";
 import { Page } from "wrappers";
-import { Typography } from "@mui/material";
 
 const sortDaos = (daos: Dao[]) => {
   return _.orderBy(
@@ -163,11 +162,7 @@ const NewDao = () => {
 
   return (
     <StyledNewDao onClick={() => createSpace.root()}>
-      <StyledDaoContent hover className="container">
-        <StyledFlexColumn className="flex">
-          <Typography>Создать новое ДАО</Typography>
-        </StyledFlexColumn>
-      </StyledDaoContent>
+      <Typography>Создать новое ДАО</Typography>
     </StyledNewDao>
   );
 };
@@ -175,19 +170,21 @@ const NewDao = () => {
 const ListLoader = () => {
   return (
     <StyledDaosList>
-      {_.range(0, 1).map((it, i) => {
+      {_.range(0, 3).map((it, i) => {
         return (
-          <StyledDao key={i}>
+          <Box key={i} sx={{ width: "100%" }}>
             <StyledDaoContent>
-              <StyledFlexColumn>
+              <StyledFlexRow gap={14}>
                 <StyledSkeletonLoader
-                  style={{ borderRadius: "50%", width: 70, height: 70 }}
+                  style={{ borderRadius: "50%", width: 48, height: 48, minWidth: 48 }}
                 />
-                <StyledSkeletonLoader style={{ width: "70%" }} />
-                <StyledSkeletonLoader />
-              </StyledFlexColumn>
+                <StyledFlexColumn gap={2}>
+                  <StyledSkeletonLoader style={{ width: 160, height: 18 }} />
+                  <StyledSkeletonLoader style={{ width: 120, height: 14 }} />
+                </StyledFlexColumn>
+              </StyledFlexRow>
             </StyledDaoContent>
-          </StyledDao>
+          </Box>
         );
       })}
     </StyledDaosList>

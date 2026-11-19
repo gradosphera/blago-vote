@@ -367,16 +367,16 @@ export default function MultisigView() {
           <AddressLink address={parsed} />
         </Typography>
         <Box className="multisigCardBalances">
-          <Typography className="multisigCardBalance">
-            <img className="multisigCardBalanceLogo" src={GRAM_LOGO_URL} alt="" />
-            {fromNano(info.tonBalance)} GRAM
-          </Typography>
           {jettonInfo && jettonBalance ? (
             <Typography className="multisigCardBalance">
               <img className="multisigCardBalanceLogo" src={jettonInfo.logo || ""} alt="" />
               {formatJettonAmount(jettonBalance, jettonInfo.decimals ?? 0)} {jettonInfo.name}
             </Typography>
           ) : null}
+          <Typography className="multisigCardBalance">
+            <img className="multisigCardBalanceLogo" src={GRAM_LOGO_URL} alt="" />
+            {fromNano(info.tonBalance)} GRAM
+          </Typography>
         </Box>
       </Box>
 

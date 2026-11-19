@@ -6,7 +6,7 @@ import { useDaoQuery } from "query/getters";
 import { Suspense } from "react";
 import { Helmet } from "react-helmet";
 import { Outlet } from "react-router-dom";
-import { parseLanguage } from "utils";
+import { parseLanguage, sanitizeDaoName } from "utils";
 import { Page } from "wrappers";
 import { DaoLayout } from "./components";
 
@@ -23,7 +23,7 @@ export function Dao() {
         <title>
           {APP_NAME}
           {data
-            ? ` - ${parseLanguage(data.daoMetadata.metadataArgs.name)}`
+            ? ` - ${sanitizeDaoName(parseLanguage(data.daoMetadata.metadataArgs.name))}`
             : ""}
         </title>
       </Helmet>

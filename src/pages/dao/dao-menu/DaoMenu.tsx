@@ -15,7 +15,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { appNavigation } from "router/navigation";
 import { StyledFlexColumn, StyledFlexRow, StyledSkeletonLoader } from "styles";
-import { parseLanguage } from "utils";
+import { parseLanguage, sanitizeDaoName } from "utils";
 import {
   StyledSideMenu,
   StyledLogo,
@@ -109,7 +109,7 @@ const DaoTitle = () => {
     <StyledFlexRow>
       <StyledTitle
         placement="top"
-        text={parseLanguage(dao?.daoMetadata?.metadataArgs.name)}
+        text={sanitizeDaoName(parseLanguage(dao?.daoMetadata?.metadataArgs.name))}
       />
       <VerifiedDao daoAddress={dao?.daoAddress} />
     </StyledFlexRow>

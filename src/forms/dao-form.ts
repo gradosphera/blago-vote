@@ -3,7 +3,7 @@ import { ABOUT_CHARS_LIMIT, TITLE_LIMIT } from "consts";
 import { useCommonTranslations } from "i18n/hooks/useCommonTranslations";
 import { useCreateDaoTranslations } from "i18n/hooks/useCreateDaoTranslations";
 import { DaoMetadataForm, DaoRolesForm, InputArgs } from "types";
-import { validateAddress } from "utils";
+import { sanitizeDaoName, validateAddress } from "utils";
 import * as Yup from "yup";
 
 export const useDaoMetadataInputs = (): InputArgs<DaoMetadataForm>[] => {
@@ -101,16 +101,23 @@ export const useDaoMetadataSchema = () => {
   const commonTranslations = useCommonTranslations();
 
   return Yup.object().shape({
-    name_en: Yup.string().test(
-      "",
-      commonTranslations.isRequired(createDaoTranslations.daoName),
-      (value, context) => {
-        if (!context.parent.name_en) {
-          return false;
+    name_en: Yup.string()
+      .test(
+        "name-format",
+        "Название может содержать только буквы, цифры, пробелы и дефис",
+        (value) => {
+          if (!value) return false;
+          return /^[a-zA-Zа-яА-ЯёЁ0-9\s\-]+$/.test(value);
         }
-        return true;
-      }
-    ),
+      )
+      .test(
+        "name-required",
+        commonTranslations.isRequired(createDaoTranslations.daoName),
+        (value) => {
+          if (!value) return false;
+          return true;
+        }
+      ),
     about_en: Yup.string().test(
       "",
       commonTranslations.isRequired(createDaoTranslations.daoAbout),

@@ -9,7 +9,7 @@ import { AiOutlinePlus } from "react-icons/ai";
 import { Link, useParams } from "react-router-dom";
 import { appNavigation, useAppNavigation } from "router/navigation";
 import { getBorderColor } from "theme";
-import { parseLanguage } from "utils";
+import { parseLanguage, sanitizeDaoName } from "utils";
 
 // Левая боковая панель с ДАО пользователя — только для десктопа.
 // Постоянно открыта, кнопки скрытия/раскрытия нет.
@@ -115,7 +115,7 @@ const UserDaos = () => {
                 key={dao.daoAddress}
               >
                 <AppTooltip
-                  text={parseLanguage(dao.daoMetadata.metadataArgs.name)}
+                  text={sanitizeDaoName(parseLanguage(dao.daoMetadata.metadataArgs.name))}
                   placement="right"
                 >
                   <StyledDaoImg src={dao.daoMetadata.metadataArgs.avatar} />

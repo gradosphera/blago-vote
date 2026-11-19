@@ -4,7 +4,7 @@ import { MOBILE_WIDTH } from "consts";
 import { useAppParams } from "hooks/hooks";
 import { useCommonTranslations } from "i18n/hooks/useCommonTranslations";
 import { useDaoQuery } from "query/getters";
-import { parseLanguage } from "utils";
+import { parseLanguage, sanitizeDaoName } from "utils";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 import { LayoutSection } from "./components";
 import { DaoDescription } from "./DaoDescription";
@@ -14,7 +14,7 @@ export function DaoAbout() {
 
   const daoData = useDaoQuery(daoAddress).data;
   const roles = daoData?.daoRoles;
-  const daoName = parseLanguage(daoData?.daoMetadata?.metadataArgs?.name);
+  const daoName = sanitizeDaoName(parseLanguage(daoData?.daoMetadata?.metadataArgs?.name));
   const translations = useCommonTranslations();
 
   return (

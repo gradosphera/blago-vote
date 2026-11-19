@@ -38,3 +38,4 @@ export * from "./VerifiedDao";
 export * from "./TgIcon";
 export * from "./HiddenProposal";
 export * from "./LatestBlock";
+export * from "./WalletStyleCard";

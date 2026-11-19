@@ -9,7 +9,7 @@ import { useMemo, useEffect, useState } from "react";
 import { api } from "api";
 import { useAppNavigation } from "router/navigation";
 import { StyledFlexColumn, StyledFlexRow, StyledSkeletonLoader } from "styles";
-import { parseLanguage } from "utils";
+import { parseLanguage, sanitizeDaoName } from "utils";
 import { FEATURED_DAOS } from "whitelisted";
 import { useDaosQuery } from "query/getters";
 import { MOBILE_WIDTH } from "consts";
@@ -182,7 +182,7 @@ export const ActiveProposals = () => {
         });
         const leadingChoice = _.maxBy(_.entries(votesByChoice), ([, v]) => v)?.[0] || "";
         const dao = allDaos.find((d: any) => d.daoAddress === daoAddress);
-        const daoName = parseLanguage(dao?.daoMetadata?.metadataArgs?.name);
+        const daoName = sanitizeDaoName(parseLanguage(dao?.daoMetadata?.metadataArgs?.name));
         const title = parseLanguage(metadata?.title);
         const description = parseLanguage(metadata?.description, "en")
           .split("\n")

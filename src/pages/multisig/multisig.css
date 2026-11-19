@@ -70,105 +70,34 @@
 /* START SCREEN */
 
 .daoMultisigList {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
   width: 100%;
 }
 
+@media (max-width: 1050px) {
+  .daoMultisigList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .daoMultisigList {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
 .daoMultisigItem {
-  width: calc(100% / 4 - 15px);
-  aspect-ratio: 1 / 1;
-  box-sizing: border-box;
-  border-radius: 13px;
-  cursor: pointer;
-  transition: border-color 0.2s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  position: relative;
-}
-
-.daoMultisigItem .container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
   width: 100%;
-}
-
-.daoMultisigItem:hover {
-  border-color: var(--link-color);
+  display: block;
 }
 
 .daoMultisigMine {
   order: 3;
 }
 
-.daoMultisigMineLabel {
-  flex: 1 0 100%;
-  margin-top: 6px;
-}
-
-.daoMultisigAvatarWrap {
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.daoMultisigAvatarWrap .badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 1;
-  background-color: var(--link-color);
-  color: #fff;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  height: auto;
-  line-height: 1;
-  transform: translate(50%, 50%);
-  border: 2px solid var(--bg-secondary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  white-space: nowrap;
-}
-
-.daoMultisigAvatarWrap .badge.badgeSigner {
-  background-color: #4bb34b;
-}
-
-.daoMultisigAvatarWrap .badge.badgeProposer {
-  background-color: var(--link-color);
-}
-
-.daoMultisigAvatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-color);
-}
-
-.daoMultisigAvatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
 .daoMultisigRemoveBadge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
   width: 24px;
   height: 24px;
   display: flex;
@@ -208,23 +137,13 @@
   overflow-wrap: anywhere;
 }
 
-.daoMultisigBalances {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  margin-top: auto;
-  color: var(--text-secondary);
-}
-
 .daoMultisigEmpty {
   width: 100%;
 }
 
-/* Карточка «Создать мультикошелек» — как «Создать новое ДАО» */
+/* Карточка «Создать мультикошелек» — прямоугольная */
 .daoMultisigCreate {
-  width: calc(100% / 4 - 15px);
-  aspect-ratio: 1 / 1;
+  width: 100%;
   box-sizing: border-box;
   border-radius: 13px;
   cursor: pointer;
@@ -259,26 +178,14 @@
 }
 
 @media (max-width: 1050px) {
-  .daoMultisigItem {
-    width: calc(100% / 3 - 15px);
-  }
   .daoMultisigCreate {
-    width: calc(100% / 3 - 15px);
+    width: 100%;
   }
 }
 
 @media (max-width: 768px) {
-  .daoMultisigItem {
-    width: calc(100% / 2 - 10px);
-  }
   .daoMultisigCreate {
-    width: calc(100% / 2 - 10px);
-  }
-  .daoMultisigName {
-    font-size: 16px;
-  }
-  .daoMultisigAddress {
-    font-size: 14px;
+    width: 100%;
   }
 }
 
@@ -302,11 +209,27 @@
   display: inline-block;
   background-color: var(--primary);
   color: white;
-  padding: 4px;
-  border-radius: 4px;
-  font-size: 12px;
-  height: 20px;
-  line-height: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 2;
+  transform: none;
+  border: 2px solid var(--bg-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.badge.badgeSigner {
+  background-color: #4bb34b;
+}
+
+.badge.badgeProposer {
+  background-color: var(--primary);
 }
 
 /* MULTISIG CARD / VIEW */

@@ -1,32 +1,35 @@
-import { Typography, useTheme } from "@mui/material";
+import { Typography, useTheme, Box } from "@mui/material";
 import { useTonAddress } from "@tonconnect/ui-react";
 import {
   AppTooltip,
-  OverflowWithTooltip,
   VerifiedDao,
+  WalletStyleCard,
 } from "components";
 import { mock } from "mock/mock";
 import { AiFillEyeInvisible } from "react-icons/ai";
 import { useIntersectionObserver } from "react-intersection-observer-hook";
 import { useAppNavigation } from "router/navigation";
-import { StyledFlexColumn, StyledFlexRow } from "styles";
 import { Dao } from "types";
 import {
   areTonAddressesEqual,
   getIsVerifiedDao,
   makeElipsisAddress,
   parseLanguage,
+  sanitizeDaoName,
 } from "utils";
-import {
-  StyledDao,
-  StyledDaoAvatar,
-  StyledDaoContent,
-  StyledHiddenIcon,
-} from "./styles";
+import debatesLogo from "assets/debates.svg";
+
+// Маппинг известных DAO → локальные логотипы
+const DAO_AVATAR_MAP: { [key: string]: string } = {
+  "EQCOjq7w658I7FjGoMdJdWxpkw6pHvSBQHkfs-wCBCbhU8BU": debatesLogo,
+};
+
+const resolveAvatar = (daoAddress: string, avatar?: string): string | undefined => {
+  return DAO_AVATAR_MAP[daoAddress] || avatar;
+};
 
 export const DaoListItem = ({ dao }: { dao: Dao }) => {
   const [ref, { entry }] = useIntersectionObserver();
-  // entry === null при первой загрузке — считаем видимым, чтобы не показывать пустую страницу
   const isVisible = entry == null || entry.isIntersecting;
   const { daoPage } = useAppNavigation();
   const metadataArgs = dao.daoMetadata?.metadataArgs;
@@ -40,51 +43,33 @@ export const DaoListItem = ({ dao }: { dao: Dao }) => {
   if ((metadataArgs.hide || !getIsVerifiedDao(dao.daoAddress)) && !isOwner) return null;
 
   const mockPrefix = mock.isMockDao(dao.daoAddress) ? "(mock)" : "";
+  const name = sanitizeDaoName(parseLanguage(metadataArgs?.name) || "");
+  const addressText = metadataArgs?.dns
+    ? metadataArgs.dns
+    : makeElipsisAddress(dao.daoAddress, 6);
+  const avatar = resolveAvatar(dao.daoAddress, metadataArgs?.avatar);
 
-  const name = parseLanguage(metadataArgs?.name) || "";
+  const hiddenIcon = (metadataArgs.hide || !getIsVerifiedDao(dao.daoAddress)) && isOwner ? (
+    <AppTooltip text="Dao is hidden, you can change it in the settings page">
+      <AiFillEyeInvisible
+        style={{ width: 25, height: 25 }}
+        color={theme.palette.primary.main}
+      />
+    </AppTooltip>
+  ) : null;
 
   return (
-    <StyledDao ref={ref} onClick={() => daoPage.root(dao.daoAddress)}>
-      <StyledDaoContent className="container" hover>
-        {metadataArgs.hide && (
-          <AppTooltip text="Dao is hidden, you can change it in the settings page">
-            <StyledHiddenIcon>
-              <AiFillEyeInvisible
-                style={{ width: 25, height: 25 }}
-                color={theme.palette.primary.main}
-              />
-            </StyledHiddenIcon>
-          </AppTooltip>
-        )}
-        {isVisible ? (
-          <StyledFlexColumn>
-            <StyledDaoAvatar src={metadataArgs?.avatar} />
-            <Typography className="title">
-              {name}{mockPrefix}
-            </Typography>
-            <Address dao={dao} />
-          </StyledFlexColumn>
-        ) : null}
-      </StyledDaoContent>
-    </StyledDao>
-  );
-};
-
-const Address = ({ dao }: { dao: Dao }) => {
-  const metadataArgs = dao.daoMetadata?.metadataArgs;
-  return (
-    <StyledFlexRow className="address">
-      {metadataArgs.dns ? (
-        <OverflowWithTooltip
-          className="address-value"
-          text={metadataArgs.dns}
+    <Box ref={ref} sx={{ width: "100%" }}>
+      {isVisible ? (
+        <WalletStyleCard
+          name={name + mockPrefix}
+          address={addressText}
+          avatar={avatar}
+          hiddenIcon={hiddenIcon}
+          children={<VerifiedDao daoAddress={dao.daoAddress} />}
+          onClick={() => daoPage.root(dao.daoAddress)}
         />
-      ) : (
-        <Typography className="address-value">
-          {makeElipsisAddress(dao.daoAddress, 6)}
-        </Typography>
-      )}
-      <VerifiedDao daoAddress={dao.daoAddress} />
-    </StyledFlexRow>
+      ) : null}
+    </Box>
   );
 };

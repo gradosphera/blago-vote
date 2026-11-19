@@ -2,6 +2,7 @@ import { create } from "zustand";
 import _ from "lodash";
 import { DaoMetadataForm, DaoRolesForm } from "types";
 import { persist } from "zustand/middleware";
+import gramLogo from "assets/gram-circular-badge.svg";
 
 const initialCreateMetadataForm: DaoMetadataForm = {
   name: "",
@@ -11,7 +12,7 @@ const initialCreateMetadataForm: DaoMetadataForm = {
   about: "",
   about_en: "",
   terms: "",
-  avatar: "",
+  avatar: gramLogo,
   hide: false,
   nft: "",
   jetton: "",

@@ -1,3 +1,4 @@
+import blagoLogo from "assets/jetton-blago-logo.svg";
 import { Button, Box, Typography, CircularProgress } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppNavigation } from "router/navigation";
@@ -18,6 +19,12 @@ import { MULTISIG_CODE, IS_TESTNET, GRAM_LOGO_URL } from "multisig/constants";
 import { Address } from "@ton/core";
 import { MultisigInfo } from "./MultisigInfo";
 import { makeElipsisAddress } from "utils";
+import { WalletStyleCard } from "components";
+import {
+  BLAGO_JETTON_ADDRESS,
+  BLAGO_JETTON_DECIMALS,
+} from "multisig/constants";
+import { fetchJettonBalance } from "multisig/utils/MultisigRegistry";
 
 interface DaoListItem {
   name: string;
@@ -39,6 +46,7 @@ export function MultisigList() {
   const myAddress = useMyAddress();
   const [items, setItems] = useState<DaoListItem[]>([]);
   const [results, setResults] = useState<MultisigStatus[] | null[]>([]);
+  const [blagoBalances, setBlagoBalances] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -72,6 +80,7 @@ export function MultisigList() {
 
     setItems(merged);
     setResults(merged.map(() => null));
+    setBlagoBalances(merged.map(() => ""));
 
     let entries = merged;
     try {
@@ -112,6 +121,7 @@ export function MultisigList() {
       entries = fresh;
       setItems(fresh);
       setResults(fresh.map(() => null));
+      setBlagoBalances(fresh.map(() => ""));
     } catch (e) {
       console.error(e);
     }
@@ -130,6 +140,24 @@ export function MultisigList() {
         },
       );
       setResults(computed);
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Загружаем баланс Благо для всех мультикошельков параллельно
+    try {
+      const balances = await mapWithConcurrency(
+        entries,
+        6,
+        async (item: DaoListItem) => {
+          return await fetchJettonBalance(
+            BLAGO_JETTON_ADDRESS,
+            item.address,
+            IS_TESTNET,
+          );
+        },
+      );
+      setBlagoBalances(balances);
     } catch (e) {
       console.error(e);
     } finally {
@@ -153,6 +181,8 @@ export function MultisigList() {
     [items],
   );
 
+  const BLAGO_LOGO = blagoLogo;
+
   return (
     <Box className="multisigPage">
       <MultisigInfo />
@@ -168,13 +198,31 @@ export function MultisigList() {
       <Box className="daoMultisigList">
         {items.map((item, i) => {
           const result = results[i];
+          const blagoBalance = blagoBalances[i] || "";
           const info = Address.parseFriendly(item.address);
           info.isBounceable = true;
           info.isTestOnly = IS_TESTNET;
           const avatar = item.logo || item.jetton?.logo || GRAM_LOGO_URL;
+          const addressText = item.name ? makeElipsisAddress(item.address, 6) : "Мультикошелек";
+          const displayName = item.name || "Мультикошелек";
+
+          const roleBadge =
+            result?.role && result.role !== "none" ? (
+              <span
+                className={
+                  "badge " +
+                  (result.role === "signer"
+                    ? "badgeSigner"
+                    : "badgeProposer")
+                }
+              >
+                {result.role === "signer" ? "Подписант" : "Инициатор"}
+              </span>
+            ) : null;
+
           const removeBadge =
             item.mine && result?.ok && !result.isMultisig ? (
-              <button
+              <span
                 className="daoMultisigRemoveBadge"
                 title="Скрыть карточку"
                 onClick={(e) => {
@@ -183,8 +231,9 @@ export function MultisigList() {
                 }}
               >
                 ✕
-              </button>
+              </span>
             ) : null;
+
           return (
             <Box
               key={item.address}
@@ -193,35 +242,16 @@ export function MultisigList() {
               }
               onClick={() => onCardClick(item.address)}
             >
-              {removeBadge}
-              <Box className="container">
-                <Box className="daoMultisigAvatarWrap">
-                  <Box className="daoMultisigAvatar">
-                    <img src={avatar} alt="" />
-                  </Box>
-                  {result?.role &&
-                    result.role !== "none" && (
-                      <span
-                        className={
-                          "badge " +
-                          (result.role === "signer"
-                            ? "badgeSigner"
-                            : "badgeProposer")
-                        }
-                      >
-                        {result.role === "signer"
-                          ? "Подписант"
-                          : "Инициатор"}
-                      </span>
-                    )}
-                </Box>
-                <Box className="daoMultisigName">
-                  {item.name || "Мультикошелек"}
-                </Box>
-                <Box className="daoMultisigAddress">
-                  {makeElipsisAddress(item.address, 6)}
-                </Box>
-              </Box>
+              <WalletStyleCard
+                name={displayName}
+                address={addressText}
+                avatar={avatar}
+                jettonBalance={blagoBalance}
+                jettonLogo={BLAGO_LOGO}
+                jettonName="Благо"
+                badge={roleBadge}
+                hiddenIcon={removeBadge}
+              />
             </Box>
           );
         })}

@@ -1,4 +1,5 @@
 import { Cell } from "@ton/core";
+import gramLogo from "assets/gram-circular-badge.svg";
 
 // Контрактные коды мультикошелька (из gradoshpera-multisig/src/index.ts).
 // Используются для сверки кода аккаунта и вычисления адресов заявок.
@@ -14,8 +15,7 @@ export const IS_TESTNET: boolean =
   typeof window !== "undefined" &&
   window.location.href.indexOf("testnet=true") > -1;
 
-export const GRAM_LOGO_URL =
-  "https://raw.githubusercontent.com/gradosphera/brand-assets/refs/heads/main/gram/Gram%20Circular%20Badge.svg";
+export const GRAM_LOGO_URL = gramLogo;
 
 // Жетон управления «Благо» (decimals = 0, 1 жетон = 1 голос).
 export const BLAGO_JETTON_ADDRESS =

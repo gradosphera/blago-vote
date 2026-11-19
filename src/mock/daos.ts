@@ -9,7 +9,7 @@ const data: Dao[] = [
       metadataAddress: "",
       metadataArgs: {
         about: '{"en":"This is a mock dao 1"}',
-        avatar: "https://tonv.s3.us-east-2.amazonaws.com/stonfi.png",
+        avatar: "",
         github: "",
         hide: false,
         name: '{"en":"Mock Dao"}',

@@ -545,3 +545,9 @@ export const getProposalSymbol = (
       break;
   }
 };
+
+// Разрешённые символы в названии ДАО: буквы (Cyrillic + Latin), цифры, пробел, дефис.
+// Удаляет кавычки и любые другие символы.
+export const sanitizeDaoName = (name: string): string => {
+  return name.replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s\-]/g, "").replace(/\s+/g, " ").trim();
+};

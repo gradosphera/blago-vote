@@ -26,7 +26,8 @@ export const StyledDaoAvatar = styled(Img)({
 
 // Карточка ДАО на главной: только аватар, имя и адрес с галочкой верификации.
 // Карточка квадратная (aspectRatio 1); число колонок адаптивное (4/3/2/1).
-export const StyledDao = styled(Box)(({ theme }) => ({
+// Используется только для loader и fallback — основные карточки используют WalletStyleCard.
+export const StyledDao = styled(Box)({
   width: "calc(100% / 4 - 15px)",
   aspectRatio: "1 / 1",
   cursor: "pointer",
@@ -34,54 +35,7 @@ export const StyledDao = styled(Box)(({ theme }) => ({
     height: "100%",
     justifyContent: "center",
   },
-  ".title": {
-    fontSize: 18,
-    fontWeight: 800,
-    width: "100%",
-    textAlign: "center",
-    color: theme.typography.h2.color,
-    overflowWrap: "break-word",
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-  },
-  ".address-value": {
-    textAlign: "center",
-    fontSize: 16,
-  },
-  ".members": {
-    fontWeight: 700,
-    padding: "5px 20px",
-    borderRadius: 20,
-    marginTop: 20,
-    p: {
-      fontSize: 12,
-    },
-  },
-  "@media (max-width: 1050px)": {
-    width: "calc(100% / 3 - 15px)",
-  },
-  [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
-    width: "calc(100% / 2 - 5px)",
-    ".title": {
-      fontSize: 16,
-      overflowWrap: "break-word",
-      wordBreak: "break-word",
-      whiteSpace: "normal",
-    },
-
-    ".address-value": {
-      fontSize: 14,
-    },
-    ".members": {
-      padding: "5px 10px",
-      marginTop: 15,
-      p: {
-        fontSize: 11,
-      },
-    },
-  },
-  // На узких экранах оставляем минимум 2 колонки (без правила 1 колонки).
-}));
+});
 
 export const StyledHeader = styled(StyledFlexRow)({
   justifyContent: "space-between",
@@ -101,17 +55,21 @@ export const StyledWebsiteChip = styled(Chip)(({ theme }) => ({
   },
 }));
 
-export const StyledDaosList = styled(StyledFlexRow)({
-  marginLeft: "auto",
-  marginRight: "auto",
-  flexWrap: "wrap",
-  gap: 20,
-  justifyContent: "flex-start",
+// Grid layout: 3 columns desktop → 2 columns tablet → 1 column mobile
+export const StyledDaosList = styled(Box)(({ theme }) => ({
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 1fr)",
+  gap: 15,
+  width: "100%",
 
+  "@media (max-width: 1050px)": {
+    gridTemplateColumns: "repeat(2, 1fr)",
+  },
   [`@media (max-width: ${MOBILE_WIDTH}px)`]: {
+    gridTemplateColumns: "repeat(1, 1fr)",
     gap: 10,
   },
-});
+}));
 
 export const StyledHiddenIcon = styled(Box)({
   position: "absolute",
@@ -169,28 +127,41 @@ export const StyledAboutSection = styled(Box)(({ theme }) => ({
   },
 }));
 
-export const StyledNewDao = styled(StyledDao)(({ theme }) => ({
+// New DAO card — rectangular with dashed border
+export const StyledNewDao = styled(Box)(({ theme }) => ({
+  width: "100%",
+  boxSizing: "border-box" as const,
+  borderRadius: 13,
+  cursor: "pointer",
+  transition: "border-color 0.2s",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+  background: "transparent",
+  border:
+    theme.palette.mode === "light"
+      ? "1px dashed rgba(0,0,0 , 0.15)"
+      : "1px dashed rgba(229,229,234, 0.2)",
+  "&:hover": {
+    border: `1px dashed ${theme.palette.primary.main}`,
+  },
   ".container": {
-    boxShadow: "none",
-    padding: 50,
-    backgroundColor: "transparent",
-    border:
-      theme.palette.mode === "light"
-        ? "1px dashed rgba(0,0,0 , 0.15)"
-        : "1px dashed rgba(229,229,234, 0.2)",
-    "&:hover": {
-      border: `1px dashed ${theme.palette.primary.main}`,
-    },
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   p: {
     textAlign: "center",
-    fontWight: 600,
+    fontWeight: 600,
     fontSize: 17,
-  },
-  ".flex": {
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
   },
 }));
 
+export const StyledCreateAbout = styled(Typography)({
+  fontSize: 14,
+  opacity: 0.7,
+  width: "100%",
+  textAlign: "left",
+});

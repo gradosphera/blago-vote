@@ -1,4 +1,6 @@
 import { Address, Cell } from "@ton/core";
+import blagoLogo from "assets/jetton-blago-logo.svg";
+import debatesLogo from "assets/debates.svg";
 import { parseMultisigData } from "../multisig/Multisig";
 import { getProxyUrl, sendToIndex } from "./MyNetworkProvider";
 
@@ -57,18 +59,18 @@ const SNAPSHOT: RegistryFile = {
         name: "Благо",
         address: "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll",
         decimals: 0,
-        logo: "https://raw.githubusercontent.com/gradosphera/brand-assets/refs/heads/main/logo.svg",
+        logo: blagoLogo,
       },
     },
     {
       name: "ДАО Городские дебаты",
       address: "UQACfRYh7GcZJwtB6zI5bn1DO58MXj1GIyY1u94Eg4TJFp8v",
-      logo: "https://raw.githubusercontent.com/gradosphera/brand-assets/6e7b91f4bc624002cfbe87a42609762f38db64bd/blago-vesting/logo_256x256.png",
+      logo: debatesLogo,
       jetton: {
         name: "Благо",
         address: "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll",
         decimals: 0,
-        logo: "https://raw.githubusercontent.com/gradosphera/brand-assets/refs/heads/main/logo.svg",
+        logo: blagoLogo,
       },
     },
   ],
