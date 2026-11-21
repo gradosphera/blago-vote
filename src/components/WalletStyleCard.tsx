@@ -131,10 +131,18 @@ const StyledWalletCard = styled(Box)(({ theme }) => {
       whiteSpace: "nowrap" as const,
     },
 
-    // === HIDDEN ICON (top-left) ===
-    ".card-hidden": {
+    // === BADGE (top-left) ===
+    ".card-badge": {
       position: "absolute" as const,
       left: 10,
+      top: 10,
+      zIndex: 2,
+    },
+
+    // === HIDDEN ICON (top-right) ===
+    ".card-hidden": {
+      position: "absolute" as const,
+      right: 10,
       top: 10,
       zIndex: 2,
     },
@@ -186,8 +194,12 @@ const StyledWalletCard = styled(Box)(({ theme }) => {
         fontSize: 9,
         lineHeight: "13px",
       },
-      ".card-hidden": {
+      ".card-badge": {
         left: 6,
+        top: 6,
+      },
+      ".card-hidden": {
+        right: 6,
         top: 6,
       },
     },
@@ -220,7 +232,10 @@ export function WalletStyleCard({
 
   return (
     <StyledWalletCard onClick={onClick}>
-      {/* Hidden icon — top-left */}
+      {/* Badge — top-left */}
+      {badge && <Box className="card-badge">{badge}</Box>}
+
+      {/* Hidden icon — top-right */}
       {hiddenIcon && <Box className="card-hidden">{hiddenIcon}</Box>}
 
       {/* Balance — center-left */}
@@ -255,19 +270,6 @@ export function WalletStyleCard({
           >
             {name.charAt(0).toUpperCase()}
           </Typography>
-        )}
-        {/* Role badge — overlaid on logo top-right */}
-        {badge && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: -4,
-              right: -4,
-              zIndex: 2,
-            }}
-          >
-            {badge}
-          </Box>
         )}
       </Box>
 

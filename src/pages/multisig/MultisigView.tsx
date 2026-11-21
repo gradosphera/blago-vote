@@ -17,6 +17,7 @@ import {
   fetchJettonBalance,
   RegistryJetton,
   getSnapshotEntries,
+  getRole,
 } from "multisig/utils/MultisigRegistry";
 import { IS_TESTNET, GRAM_LOGO_URL } from "multisig/constants";
 import { BLACKLISTED_ORDERS } from "config";
@@ -148,7 +149,13 @@ export default function MultisigView() {
 
   // Загрузка баланса жетона для этого мультикошелька
   useEffect(() => {
-    if (!address || !info) return;
+    if (!address || !info || !myAddress) return;
+    const userRole = getRole(
+      info.signers.map((a) => a.address),
+      info.proposers.map((a) => a.address),
+      myAddress,
+    );
+    if (userRole === "none") return;
     const j = findJettonForMultisig(address);
     if (!j) {
       setJettonInfo(undefined);
@@ -157,7 +164,7 @@ export default function MultisigView() {
     }
     setJettonInfo(j);
     fetchJettonBalance(j.address, address, IS_TESTNET).then(setJettonBalance);
-  }, [address, info]);
+  }, [address, info, myAddress]);
 
   useDnsNames(
     info ? [...info.signers, ...info.proposers].map((a) => a.address) : [],
@@ -218,6 +225,13 @@ export default function MultisigView() {
   const total = threshold + signers.length;
   const thresholdPct = total > 0 ? (threshold / total) * 100 : 50;
   const signersPct = total > 0 ? (signers.length / total) * 100 : 50;
+
+  const userRole = getRole(
+    signers.map((a) => a.address),
+    proposers.map((a) => a.address),
+    myAddress,
+  );
+  const canCreateOrder = userRole !== "none";
 
   const avatarList = (list: AddressInfo[]) =>
     list.map((signer, i) => {
@@ -354,12 +368,14 @@ export default function MultisigView() {
         <Button variant="outlined" onClick={() => multisigPage.root()}>
           Назад
         </Button>
-        <Button
-          variant="contained"
-          onClick={() => multisigPage.newOrder(address!)}
-        >
-          Создать заявку
-        </Button>
+        {canCreateOrder ? (
+          <Button
+            variant="contained"
+            onClick={() => multisigPage.newOrder(address!)}
+          >
+            Создать заявку
+          </Button>
+        ) : null}
       </Box>
 
       <Box className="multisigCard">

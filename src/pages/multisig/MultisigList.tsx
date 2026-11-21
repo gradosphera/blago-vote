@@ -140,23 +140,29 @@ export function MultisigList() {
         },
       );
       setResults(computed);
-    } catch (e) {
-      console.error(e);
-    }
 
-    // Загружаем баланс Благо для всех мультикошельков параллельно
-    try {
-      const balances = await mapWithConcurrency(
-        entries,
-        6,
-        async (item: DaoListItem) => {
-          return await fetchJettonBalance(
-            BLAGO_JETTON_ADDRESS,
-            item.address,
-            IS_TESTNET,
-          );
-        },
-      );
+      // Загружаем баланс Благо только для мультикошельков с ролью пользователя
+      const enabledIndexes: number[] = [];
+      computed.forEach((r, i) => {
+        if (r.role !== "none") enabledIndexes.push(i);
+      });
+      const balances = new Array(entries.length).fill("");
+      if (enabledIndexes.length > 0) {
+        const loaded = await mapWithConcurrency(
+          enabledIndexes,
+          6,
+          async (idx: number) => {
+            return await fetchJettonBalance(
+              BLAGO_JETTON_ADDRESS,
+              entries[idx].address,
+              IS_TESTNET,
+            );
+          },
+        );
+        enabledIndexes.forEach((idx, i) => {
+          balances[idx] = loaded[i];
+        });
+      }
       setBlagoBalances(balances);
     } catch (e) {
       console.error(e);
