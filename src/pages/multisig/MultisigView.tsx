@@ -416,7 +416,7 @@ export default function MultisigView() {
       </Box>
 
       <Box className="multisigConfigRow">
-        <Button variant="outlined" onClick={() => multisigPage.create()}>
+        <Button variant="outlined" onClick={() => multisigPage.edit(address!)}>
           Изменить конфигурацию
         </Button>
       </Box>

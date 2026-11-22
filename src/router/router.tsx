@@ -193,6 +193,15 @@ export const useRouter = () => {
                 ),
               },
               {
+                path: toAbs(routes.multisigEdit),
+                errorElement: <RouteError />,
+                element: (
+                  <Suspense fallback={<PageFallback />}>
+                    <CreateMultisig />
+                  </Suspense>
+                ),
+              },
+              {
                 path: toAbs(routes.multisigNewOrder),
                 errorElement: <RouteError />,
                 element: (

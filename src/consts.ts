@@ -33,6 +33,7 @@ export const routes = {
   multisigCreate: "multisig/new",
   multisigAddress: "multisig/:address",
   multisigNewOrder: "multisig/:address/new-order",
+  multisigEdit: "multisig/:address/edit",
   multisigOrder: "multisig/:address/*",
 };
 

@@ -31,6 +31,7 @@ export const appNavigation = {
         .replace(":address", address)
         .replace("*", orderId.toString()),
     create: () => toAbs(routes.multisigCreate),
+    edit: (address: string) => toAbs(routes.multisigEdit).replace(":address", address),
     import: () => toAbs(routes.multisigImport),
   },
 };
@@ -67,6 +68,7 @@ export const useAppNavigation = () => {
       order: (address: string, orderId: string | bigint) =>
         navigate(appNavigation.multisigPage.order(address, orderId)),
       create: () => navigate(appNavigation.multisigPage.create()),
+      edit: (address: string) => navigate(appNavigation.multisigPage.edit(address)),
       import: () => navigate(appNavigation.multisigPage.import()),
     },
   };
