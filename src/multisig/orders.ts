@@ -1,5 +1,5 @@
 import { Address, beginCell, SendMode, storeStateInit, toNano } from "@ton/core";
-import { addressToString } from "./utils/utils";
+import { addressToString, equalsMsgAddresses } from "./utils/utils";
 import { sendToIndex } from "./utils/MyNetworkProvider";
 import { Multisig, type UpdateRequest } from "./multisig/Multisig";
 import { MultisigInfo } from "./multisig/MultisigChecker";
@@ -187,18 +187,28 @@ export const prepareCreateMultisig = (params: {
 /**
  * Собирает транзакцию обновления конфигурации мультикошелька (type 2 update action).
  * Создает заявку с действием update_multisig_params.
+ * Порт prepareUpdateMultisig из gradoshpera-multisig.
  */
-export const prepareUpdateMultisig = (params: {
-  multisigAddress: Address;
+export const prepareUpdateMultisig = async (params: {
+  multisigInfo: MultisigInfo;
+  isTestnet: boolean;
+  orderId: bigint;
   threshold: number;
   signers: Address[];
   proposers: Address[];
-  isTestnet: boolean;
   myAddress: Address;
-  isSigner: boolean;
-  addrIdx: number;
-}): { orderId: bigint; message: TonConnectMessage } => {
-  const { multisigAddress, threshold, signers, proposers, isTestnet, myAddress, isSigner, addrIdx } = params;
+}): Promise<{ orderId: bigint; message: TonConnectMessage }> => {
+  const { multisigInfo, isTestnet, orderId, threshold, signers, proposers, myAddress } = params;
+
+  // Validate order ID doesn't already exist on chain
+  const orderIdChecked = await checkExistingOrderId(orderId, multisigInfo, isTestnet);
+  if (orderIdChecked.error) throw new Error(orderIdChecked.error);
+
+  // Find signer index for the current user
+  const mySignerIndex = multisigInfo.signers.findIndex((a) =>
+    equalsMsgAddresses(a.address, myAddress),
+  );
+  const isSigner = mySignerIndex > -1;
 
   const updateAction: UpdateRequest = {
     type: "update",
@@ -210,14 +220,13 @@ export const prepareUpdateMultisig = (params: {
   const actions = [updateAction];
   const actionsCell = Multisig.packOrder(actions);
 
-  const orderId = 1n; // Update uses order ID 1 (type 2)
-  const expireAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 1 месяц
+  const expireAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 1 month
 
   const message = Multisig.newOrderMessage(
     actionsCell,
     expireAt,
     isSigner,
-    addrIdx,
+    isSigner ? mySignerIndex : 0,
     orderId,
     0n,
   );
@@ -226,7 +235,7 @@ export const prepareUpdateMultisig = (params: {
   return {
     orderId,
     message: {
-      address: addressToString({ address: multisigAddress, isBounceable: true, isTestOnly: isTestnet }),
+      address: addressToString({ address: multisigInfo.address.address, isBounceable: true, isTestOnly: isTestnet }),
       amount: AMOUNT_TO_SEND.toString(),
       payload: messageBase64,
     },

@@ -7,13 +7,18 @@ import { useMyAddress } from "multisig/useMyAddress";
 import { useMultisigSendTransaction } from "multisig/useMultisigSendTransaction";
 import { useAppNavigation } from "router/navigation";
 import { useMultisigInfo } from "multisig/useMultisigInfo";
-import { prepareCreateMultisig, prepareUpdateMultisig } from "multisig/orders";
+import { prepareCreateMultisig, prepareUpdateMultisig, TonConnectMessage } from "multisig/orders";
 import { IS_TESTNET } from "multisig/constants";
 import {
   validateUserFriendlyAddress,
   addressToString,
   equalsMsgAddresses,
 } from "multisig/utils/utils";
+
+interface PreparedUpdate {
+  orderId: bigint;
+  message: TonConnectMessage;
+}
 
 export default function CreateMultisig() {
   const { address } = useParams();
@@ -33,7 +38,24 @@ export default function CreateMultisig() {
   const [signers, setSigners] = useState<string[]>([""]);
   const [proposers, setProposers] = useState<string[]>([]);
   const [threshold, setThreshold] = useState<string>("");
+  const [orderId, setOrderId] = useState<string>("");
+  const [preparedUpdate, setPreparedUpdate] = useState<PreparedUpdate | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Вычисление order ID из lastOrders
+  useEffect(() => {
+    if (!isEdit || !multisigInfo) return;
+    if (multisigInfo.lastOrders.length === 0) {
+      setOrderId("1");
+    } else {
+      let highest = -1n;
+      multisigInfo.lastOrders.forEach((o: { order?: { id: bigint } }) => {
+        if (o.order && o.order.id > highest) highest = o.order.id;
+      });
+      setOrderId(highest === -1n ? "" : (highest + 1n).toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, multisigInfo]);
 
   // Инициализация формы
   useEffect(() => {
@@ -121,35 +143,29 @@ export default function CreateMultisig() {
     }
 
     try {
-      if (isEdit && address) {
-        // Update mode: create an update order
+      if (isEdit && address && multisigInfo) {
+        // Update mode: prepare an update order
+        const oid = BigInt(orderId);
+        if (oid < 0n) {
+          setErr("Неверный номер заявки");
+          return;
+        }
+
         const parsedAddress = Address.parseFriendly(address);
         parsedAddress.isBounceable = false;
         parsedAddress.isTestOnly = IS_TESTNET;
 
-        // Find if user is a signer and get their index
-        const signerIndex = signerAddresses.findIndex((a) =>
-          equalsMsgAddresses(a, myAddress)
-        );
-
-        const { message } = prepareUpdateMultisig({
-          multisigAddress: parsedAddress.address,
+        const prepared = await prepareUpdateMultisig({
+          multisigInfo,
+          isTestnet: IS_TESTNET,
+          orderId: oid,
           threshold: thresholdNum,
           signers: signerAddresses,
           proposers: proposerAddresses,
-          isTestnet: IS_TESTNET,
           myAddress: myAddress!,
-          isSigner: signerIndex > -1,
-          addrIdx: signerIndex > -1 ? signerIndex : 0,
         });
 
-        await send({
-          validUntil: Math.floor(Date.now() / 1000) + 300,
-          messages: [message],
-        });
-
-        // After successful update, go back to the multisig page
-        multisigPage.address(address);
+        setPreparedUpdate(prepared);
       } else {
         // Create mode: create a new multisig
         const { multisigAddress, message } = prepareCreateMultisig({
@@ -167,7 +183,24 @@ export default function CreateMultisig() {
     } catch (e: any) {
       setErr(e?.message || "Ошибка отправки");
     }
-  }, [myAddress, threshold, signers, proposers, send, multisigPage, isEdit, address]);
+  }, [myAddress, threshold, signers, proposers, send, multisigPage, isEdit, address, multisigInfo, orderId]);
+
+  const onSend = useCallback(async () => {
+    if (!preparedUpdate) return;
+    try {
+      await send({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [preparedUpdate.message],
+      });
+      // Navigate to the order page to display the request number
+      if (isEdit && address) {
+        multisigPage.order(address, preparedUpdate.orderId);
+      }
+    } catch (e: any) {
+      setErr(e?.message || "Ошибка отправки");
+      setPreparedUpdate(null);
+    }
+  }, [preparedUpdate, send, multisigPage, isEdit, address]);
 
   // Заголовок и текст кнопки зависят от режима
   const title = isEdit ? "Обновить конфигурацию" : "Создать мультикошелек";
@@ -196,68 +229,105 @@ export default function CreateMultisig() {
         </Typography>
       ) : null}
 
-      <Box className="newOrderField">
-        <Typography className="label">Порог (число подписантов для подтверждения):</Typography>
-        <input
-          className="newOrderInput"
-          value={threshold}
-          onChange={(e) => setThreshold(e.target.value)}
-          inputMode="numeric"
-          placeholder={"1 … " + signers.length}
-        />
-      </Box>
+      {isEdit && multisigInfo && preparedUpdate ? (
+        /* Confirm phase for update */
+        <Box className="newOrderConfirm">
+          <Typography className="label">Номер заявки: {preparedUpdate.orderId.toString()}</Typography>
+          <Typography className="value">
+            К мультикошельку будет отправлена транзакция на обновление конфигурации.
+            Далее заявку нужно подтвердить другим подписантам.
+          </Typography>
+          {err ? <Typography color="error">{err}</Typography> : null}
+          <Box className="multisigHeaderButtons">
+            <Button variant="outlined" disabled={sending} onClick={() => setPreparedUpdate(null)}>
+              Отмена
+            </Button>
+            <Button variant="contained" disabled={sending} onClick={onSend}>
+              {sending ? "Отправка..." : "Подтвердить"}
+            </Button>
+          </Box>
+        </Box>
+      ) : (
+        /* Fill phase */
+        <>
+          {isEdit && multisigInfo ? (
+            <Box className="newOrderField">
+              <Typography className="label">Номер заявки:</Typography>
+              <input
+                className="newOrderInput"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+                inputMode="numeric"
+                readOnly
+                style={{ backgroundColor: "#f5f5f5" }}
+              />
+            </Box>
+          ) : null}
 
-      <Box className="multisigSection">
-        <Typography className="label">Подписанты:</Typography>
-        {signers.map((s, i) => (
-          <Box className="address-input" key={i}>
-            <span className="address-input-num">#{i + 1}.</span>
+          <Box className="newOrderField">
+            <Typography className="label">Порог (число подписантов для подтверждения):</Typography>
             <input
               className="newOrderInput"
-              value={s}
-              onChange={(e) => setSigner(i, e.target.value)}
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              inputMode="numeric"
+              placeholder={"1 … " + signers.length}
             />
-            <button
-              onClick={() => removeSigner(i)}
-              disabled={signers.length <= 1}
-            >
-              —
-            </button>
           </Box>
-        ))}
-        <Button variant="outlined" onClick={addSigner}>
-          + Подписант
-        </Button>
-      </Box>
 
-      <Box className="multisigSection">
-        <Typography className="label">Инициаторы (необязательно):</Typography>
-        {proposers.map((p, i) => (
-          <Box className="address-input" key={i}>
-            <span className="address-input-num">#{i + 1}.</span>
-            <input
-              className="newOrderInput"
-              value={p}
-              onChange={(e) => setProposer(i, e.target.value)}
-            />
-            <button onClick={() => removeProposer(i)}>—</button>
+          <Box className="multisigSection">
+            <Typography className="label">Подписанты:</Typography>
+            {signers.map((s, i) => (
+              <Box className="address-input" key={i}>
+                <span className="address-input-num">#{i + 1}.</span>
+                <input
+                  className="newOrderInput"
+                  value={s}
+                  onChange={(e) => setSigner(i, e.target.value)}
+                />
+                <button
+                  onClick={() => removeSigner(i)}
+                  disabled={signers.length <= 1}
+                >
+                  —
+                </button>
+              </Box>
+            ))}
+            <Button variant="outlined" onClick={addSigner}>
+              + Подписант
+            </Button>
           </Box>
-        ))}
-        <Button variant="outlined" onClick={addProposer}>
-          + Инициатор
-        </Button>
-      </Box>
 
-      {err ? <Typography color="error">{err}</Typography> : null}
+          <Box className="multisigSection">
+            <Typography className="label">Инициаторы (необязательно):</Typography>
+            {proposers.map((p, i) => (
+              <Box className="address-input" key={i}>
+                <span className="address-input-num">#{i + 1}.</span>
+                <input
+                  className="newOrderInput"
+                  value={p}
+                  onChange={(e) => setProposer(i, e.target.value)}
+                />
+                <button onClick={() => removeProposer(i)}>—</button>
+              </Box>
+            ))}
+            <Button variant="outlined" onClick={addProposer}>
+              + Инициатор
+            </Button>
+          </Box>
 
-      <Box className="multisigHeaderButtons">
-        <Button variant="outlined" onClick={() => multisigPage.root()}>
-          Назад
-        </Button>
-        <Button variant="contained" onClick={onSubmit} disabled={sending}>
-          {submitLabel}
-        </Button>
-      </Box>
+          {err ? <Typography color="error">{err}</Typography> : null}
+
+          <Box className="multisigHeaderButtons">
+            <Button variant="outlined" onClick={() => multisigPage.root()}>
+              Назад
+            </Button>
+            <Button variant="contained" onClick={onSubmit} disabled={sending}>
+              {submitLabel}
+            </Button>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }
