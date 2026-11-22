@@ -41,6 +41,7 @@ export default function CreateMultisig() {
   const [orderId, setOrderId] = useState<string>("");
   const [preparedUpdate, setPreparedUpdate] = useState<PreparedUpdate | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Вычисление order ID из lastOrders
   useEffect(() => {
@@ -57,8 +58,10 @@ export default function CreateMultisig() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, multisigInfo]);
 
-  // Инициализация формы
+  // Инициализация формы — только один раз
   useEffect(() => {
+    if (isInitialized) return;
+
     if (isEdit && multisigInfo) {
       // Edit mode: pre-fill with current config
       const signerAddresses = multisigInfo.signers.map((s) =>
@@ -74,6 +77,8 @@ export default function CreateMultisig() {
       // Create mode: pre-fill with user's address
       setSigners([addressToString({ address: myAddress, isBounceable: true, isTestOnly: IS_TESTNET })]);
     }
+
+    setIsInitialized(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, multisigInfo, myAddress]);
 
