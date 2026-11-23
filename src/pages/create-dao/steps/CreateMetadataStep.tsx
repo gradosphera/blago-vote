@@ -27,11 +27,17 @@ export function CreateMetadataStep() {
 
   const onSubmit = async (formData: DaoMetadataForm) => {
     const metadata: DaoMetadataForm = {
-      about: JSON.stringify({ en: formData.about_en }),
+      about: JSON.stringify({
+        en: formData.about_en || "",
+        ru: formData.about_ru || formData.about_en || "",
+      }),
       avatar: formData.avatar || "",
       github: formData.github || "",
       hide: formData.hide,
-      name: JSON.stringify({ en: formData.name_en }),
+      name: JSON.stringify({
+        en: formData.name_en || "",
+        ru: formData.name_ru || formData.name_en || "",
+      }),
       terms: "",
       telegram: formData.telegram || "",
       website: formData.website || "",
@@ -66,6 +72,8 @@ export function CreateMetadataStep() {
       dns: daoMetadataForm.dns,
       about_en: daoMetadataForm.about_en,
       name_en: daoMetadataForm.name_en,
+      about_ru: daoMetadataForm.about_ru,
+      name_ru: daoMetadataForm.name_ru,
     },
     validationSchema: Schema,
     validateOnChange: false,

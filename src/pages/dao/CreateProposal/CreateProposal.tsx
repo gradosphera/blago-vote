@@ -15,10 +15,14 @@ import { useDaoQuery } from "query/getters";
 import { usePublisherMultisigSigner } from "multisig/usePublisherMultisigSigner";
 import { buildCreateProposalOrder } from "multisig/createProposalOrder";
 import { ProposalMetadata } from "ton-vote-contracts-sdk";
+import { useTranslation } from "react-i18next";
+import { useCommonTranslations } from "i18n/hooks/useCommonTranslations";
 
 
 export const CreateProposal = () => {
   const { daoAddress } = useAppParams();
+  const { t } = useTranslation("multisig");
+  const commonT = useCommonTranslations();
 
   const { data: dao, isLoading: daoLoading } = useDaoQuery(daoAddress);
   const { setFormData, formData } = useCreateProposalStore();
@@ -45,7 +49,7 @@ export const CreateProposal = () => {
           navigation.multisigPage.newOrder(multisigAddress),
           {
             state: {
-              orderType: "Произвольная заявка",
+              orderType: t("customOrder"),
               values: {
                 order: orderBoc,
                 amount: feeTon,
@@ -57,7 +61,7 @@ export const CreateProposal = () => {
       } catch (e: any) {
         showErrorToast(
           e?.message ||
-            "Не удалось подготовить заявку в мультикошелёк. Напишите в службу поддержки",
+            t("prepareOrderFailed"),
         );
       } finally {
         setIsPreparingOrder(false);
@@ -76,7 +80,7 @@ export const CreateProposal = () => {
   };
 
   return (
-    <LayoutSection title="Создать предложение" isLoading={daoLoading}>
+    <LayoutSection title={commonT.create} isLoading={daoLoading}>
       
       <ProposalForm
         submitText="Создать"

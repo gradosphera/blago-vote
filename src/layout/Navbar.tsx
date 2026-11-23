@@ -36,6 +36,7 @@ export function Navbar() {
         </StyledLogo>
         <StyledFlexRow style={{ width: "fit-content", gap: 8 }}>
           <MultisigTab />
+          {/* <LanguageSelect /> */}
           <BlagoBalanceBadge />
           <ConnectButton />
           <ThemeToggle />
@@ -48,10 +49,11 @@ export function Navbar() {
 const MultisigTab = () => {
   const location = useLocation();
   const active = location.pathname.startsWith("/multisig") ? 1 : 0;
+  const { t } = useTranslation("common");
   return (
     <StyledMultisigTab to={appNavigation.multisigPage.root()} $active={active}>
       <TgIcon name="wallet" size={16} />
-      Мультикошелек
+      {t("multisig")}
     </StyledMultisigTab>
   );
 };
@@ -108,7 +110,7 @@ const StyledThemeToggle = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-const LanuageSelect = () => {
+const LanguageSelect = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const { i18n } = useTranslation();
 
@@ -117,6 +119,11 @@ const LanuageSelect = () => {
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
+  };
+
+  const handleSelect = (key: string) => {
+    i18n.changeLanguage(key);
+    setAnchorEl(null);
   };
   return (
     <>
@@ -131,11 +138,8 @@ const LanuageSelect = () => {
           {_.map(LANGUAGES, (value, key) => {
             return (
               <MenuItem
-                onClick={() => {
-                  i18n.changeLanguage(key);
-                  setAnchorEl(null);
-                }}
-                selected={currentLanguage === value}
+                onClick={() => handleSelect(key)}
+                selected={i18n.language === key}
                 key={key}
               >
                 {value}

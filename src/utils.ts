@@ -290,18 +290,27 @@ export const normalizeResults = (
   }).filter((it) => it.title !== "totalWeight");
 };
 
-export const parseLanguage = (json?: string, lang: string = "en") => {
-  if (!json || !lang) return "";
+export const parseLanguage = (
+  json?: string,
+  lang?: string,
+  fallbackLang: string = "en"
+) => {
+  if (!json) return "";
 
   try {
     const parsed = JSON.parse(json);
-    const value = parsed[lang];
-    if (!value) {
-      throw new Error("No value");
-    }
-    return value.trim();
-  } catch (error) {
-    return json.trim();
+    const targetLang = lang || fallbackLang;
+
+    // Сначала ищем запрошенный язык
+    if (parsed[targetLang]) return parsed[targetLang].trim();
+
+    // Фолбэк: если запрашивали ru — пробуем en
+    if (targetLang === "ru" && parsed["en"]) return parsed["en"].trim();
+
+    // Если запрашивали en — фолбэка нет
+    throw new Error("No value");
+  } catch {
+    return json.trim(); // Fallback: вернуть как есть (старый формат)
   }
 };
 

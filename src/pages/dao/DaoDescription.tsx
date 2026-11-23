@@ -4,12 +4,15 @@ import { useAppParams } from "hooks/hooks";
 import { useDaoQuery } from "query/getters";
 import React, { useMemo } from "react";
 import { parseLanguage } from "utils";
+import { useTranslation } from "react-i18next";
 
 export function DaoDescription() {
   const {daoAddress} = useAppParams()
   const rawAbout = useDaoQuery(daoAddress).data?.daoMetadata.metadataArgs.about;
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
-  const about = useMemo(() => parseLanguage(rawAbout, "en"), [rawAbout]);
+  const about = useMemo(() => parseLanguage(rawAbout, currentLang), [rawAbout, currentLang]);
 
   if (!about) return null;
   return (

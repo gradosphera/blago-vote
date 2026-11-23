@@ -8,16 +8,23 @@ import {
 import { Dao, ProposalForm, ProposalInputArgs } from "types";
 import { fromUtcMoment, isZeroAddress, utcMoment, stripProposalTemplateMarker } from "utils";
 
-const initialChoices = ["За", "Против", "Воздержаться"];
 const BLAGO_JETTON_ADDRESS = "EQBlaryI1HCY6hIlW9giBoqKGtuMHfxlULZOhD6UyzpqLcll";
+
+export const getInitialChoices = (lang: string): string[] => {
+  if (lang === "en") return ["For", "Against", "Abstain"];
+  return ["За", "Против", "Воздержаться"];
+};
 
 export const getInitialValues = (
   formData: ProposalForm,
   dao?: Dao,
   editMode?: boolean,
+  lang?: string,
 ): ProposalForm => {
   const { proposalEndTime, proposalSnapshotTime, proposalStartTime } =
     getInitialTimestamps();
+
+  const choices = formData.votingChoices || getInitialChoices(lang || "ru");
 
   return {
     proposalStartTime: editMode
@@ -29,11 +36,12 @@ export const getInitialValues = (
     proposalSnapshotTime: editMode
       ? fromUtcMoment(formData.proposalSnapshotTime).valueOf()
       : proposalSnapshotTime,
-    votingChoices: formData.votingChoices || initialChoices,
+    votingChoices: choices,
     description_en: stripProposalTemplateMarker(formData.description_en),
     description_ru: formData.description_ru,
     votingSystemType: formData.votingSystemType || 0,
     title_en: formData.title_en,
+    title_ru: formData.title_ru,
     votingPowerStrategies: handleInitialVotingPowerStrategies(
       formData.votingPowerStrategies,
       dao,
@@ -158,10 +166,21 @@ export const prepareMetadata = (
       votingSystemType: formValues.votingSystemType,
       choices: formValues.votingChoices,
     },
-    title: JSON.stringify({ en: formValues.title_en }),
+    title: JSON.stringify({
+      en: formValues.title_en || "",
+      ru: formValues.title_ru || formValues.title_en || "",
+    }),
     description: JSON.stringify({
       en:
         stripProposalTemplateMarker(formValues.description_en) +
+        (formValues.templateId && formValues.templateParams
+          ? `\n\n<!--proposal-template:${JSON.stringify({
+              templateId: formValues.templateId,
+              templateParams: formValues.templateParams,
+            })}-->`
+          : ""),
+      ru:
+        stripProposalTemplateMarker(formValues.description_ru || formValues.description_en) +
         (formValues.templateId && formValues.templateParams
           ? `\n\n<!--proposal-template:${JSON.stringify({
               templateId: formValues.templateId,

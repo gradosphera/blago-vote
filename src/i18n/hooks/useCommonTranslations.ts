@@ -36,5 +36,6 @@ export const useCommonTranslations = () => {
     somethingWentWrong: t("somethingWentWrong"),
     txPending: t("txPending"),
     checkWalletForTx: t("checkWalletForTx"),
+    daoDescription: t("daoDescription"),
   };
 };

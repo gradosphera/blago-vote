@@ -22,6 +22,8 @@ export const useCreateProposalTranslations = () => {
       snaphotTime: t("snaphotTime"),
       proposalDuration: t("proposalDuration"),
       nftAddress: t("nftAddress"),
+      hideLabel: t("hideLabel"),
+      hideTooltip: t("hideTooltip"),
       tooltips: {
         title: t("tooltips.title"),
         description: t("tooltips.description"),

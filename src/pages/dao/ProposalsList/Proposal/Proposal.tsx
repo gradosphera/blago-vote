@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import { useIntersectionObserver } from "react-intersection-observer-hook";
 import { ProposalTimeline } from "./ProposalTimeline";
 import { Results } from "./Results";
+import { useTranslation } from "react-i18next";
 
 const useHideProposal = (proposalAddress: string) => {
   const { query } = useAppQueryParams();
@@ -83,16 +84,18 @@ export const Proposal = ({ proposalAddress }: { proposalAddress: string }) => {
   const { proposalStatus, proposalStatusText } =
     useProposalStatus(proposalAddress);
   const hideProposal = useHideProposal(proposalAddress);
-  
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
+
   const description = useMemo(() => {
-    return parseLanguage(proposal?.metadata?.description, "en")
+    return parseLanguage(proposal?.metadata?.description, currentLang)
       .split("\n")
       .filter((line: string) => !line.match(/^\*?\*?Место проведения:\*?\*?/))
       .join("\n");
-  }, [proposal?.metadata?.description]);
+  }, [proposal?.metadata?.description, currentLang]);
   const title = useMemo(
-    () => parseLanguage(proposal?.metadata?.title),
-    [proposal?.metadata?.title]
+    () => parseLanguage(proposal?.metadata?.title, currentLang),
+    [proposal?.metadata?.title, currentLang]
   );
 
   const onClick = () => {

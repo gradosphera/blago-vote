@@ -17,17 +17,25 @@ export const getInitialValues = (metadata?: MetadataArgs) => {
     nft: isZeroAddress(metadata?.nft) ? "" : metadata?.nft || "",
     dns: metadata?.dns || "",
     about_en: parseLanguage(metadata?.about) || "",
+    about_ru: parseLanguage(metadata?.about, "ru") || "",
     name_en: parseLanguage(metadata?.name) || "",
+    name_ru: parseLanguage(metadata?.name, "ru") || "",
   };
 };
 
 export const prepareMetadata = (form: DaoMetadataForm): DaoMetadataForm => {
   return {
-    about: JSON.stringify({ en: form.about_en }),
+    about: JSON.stringify({
+      en: form.about_en || "",
+      ru: form.about_ru || form.about_en || "",
+    }),
     avatar: form.avatar || "",
     github: form.github || "",
     hide: form.hide,
-    name: JSON.stringify({ en: form.name_en }),
+    name: JSON.stringify({
+      en: form.name_en || "",
+      ru: form.name_ru || form.name_en || "",
+    }),
     terms: "",
     telegram: form.telegram || "",
     website: form.website || "",

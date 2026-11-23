@@ -156,6 +156,8 @@ export interface FormArgs<T> {
  export interface DaoMetadataForm extends MetadataArgs {
   about_en?: string;
   name_en?: string;
+  about_ru?: string;
+  name_ru?: string;
 }
 
 
@@ -190,6 +192,7 @@ export interface ProposalForm {
   description_en?: string;
   description_ru?: string;
   title_en?: string;
+  title_ru?: string;
   votingSystemType: number;
   hide: boolean;
   templateId?: string;

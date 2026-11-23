@@ -11,6 +11,7 @@ import { appNavigation } from "router/navigation";
 import { StyledContainer, StyledFlexColumn } from "styles";
 import { ProposalMetadata } from "ton-vote-contracts-sdk";
 import { ProposalForm as ProposalFormType, ProposalStatus } from "types";
+import { parseLanguage } from "utils";
 import { Page } from "wrappers";
 
 const parseMetadata = (metadata?: ProposalMetadata) => {
@@ -19,21 +20,28 @@ const parseMetadata = (metadata?: ProposalMetadata) => {
   }
 
   let description_en;
+  let description_ru;
 
   try {
-    description_en = JSON.parse(metadata.description).en;
+    const descParsed = JSON.parse(metadata.description);
+    description_en = descParsed.en;
+    description_ru = descParsed.ru || descParsed.en;
   } catch (error) {
     description_en = metadata.description;
+    description_ru = description_en;
   }
 
   return {
     title_en: JSON.parse(metadata.title).en,
+    title_ru: JSON.parse(metadata.title).ru || JSON.parse(metadata.title).en,
     description_en,
+    description_ru,
     proposalStartTime: metadata.proposalStartTime * 1000,
     proposalEndTime: metadata.proposalEndTime * 1000,
     proposalSnapshotTime: metadata.proposalSnapshotTime * 1000,
     votingSystemType: metadata.votingSystem.votingSystemType,
     votingPowerStrategies: metadata.votingPowerStrategies,
+    votingChoices: metadata.votingSystem.choices,
     hide: metadata.hide,
   } as ProposalFormType;
 };

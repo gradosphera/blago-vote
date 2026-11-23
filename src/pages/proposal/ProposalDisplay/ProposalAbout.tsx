@@ -36,6 +36,7 @@ import { mock } from "mock/mock";
 import { Address } from "@ton/core";
 import { useMyAddress } from "multisig/useMyAddress";
 import { useMultisigInfo } from "multisig/useMultisigInfo";
+import { useTranslation } from "react-i18next";
 
 const MIN_DESCRIPTION_HEIGHT = 450;
 
@@ -88,10 +89,12 @@ function MobileAbout() {
 const ProposalHeader = () => {
   const { proposalAddress } = useAppParams();
   const { data, isLoading } = useProposalQuery(proposalAddress);
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   const mockPrefix = mock.isMockProposal(proposalAddress) ? " (Mock)" : "";
 
-  const title = parseLanguage(data?.metadata?.title);
+  const title = parseLanguage(data?.metadata?.title, currentLang);
 
   if (isLoading) {
     return <StyledSkeletonLoader />;
@@ -139,14 +142,16 @@ const Description = () => {
   const { proposalAddress } = useAppParams();
   const { data, isLoading } = useProposalQuery(proposalAddress);
   const [showMore, setShowMore] = useState(false);
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
 
   useLayoutEffect(() => {
     if (elRef.current) {
       setDescriptionHeight(elRef.current.offsetHeight);
     }
-  }, [data?.metadata?.description]);
-  const description = parseLanguage(data?.metadata?.description)
+  }, [data?.metadata?.description, currentLang]);
+  const description = parseLanguage(data?.metadata?.description, currentLang)
     .split("\n")
     .filter((line: string) => !line.match(/^\*?\*?Место проведения:\*?\*?/))
     .join("\n");
@@ -261,20 +266,20 @@ const ProposalApplyButton = () => {
         s.address.equals(myAddress!),
       ));
 
+  const { t } = useTranslation("proposalPage");
   let reason: string;
-  if (!myAddress) reason = "Подключите кошелёк, чтобы создать заявку";
-  else if (loading) reason = "Проверка прав в мультикошельке...";
+  if (!myAddress) reason = t("connectWallet");
+  else if (loading) reason = t("checkingMultisigRights");
   else if (!info)
-    reason = "Указанный адрес мультикошелька недоступен или не является мультикошельком";
+    reason = t("multisigAddressUnavailable");
   else
-    reason =
-      "Вы не являетесь подписантом или инициатором этого мультикошелька";
+    reason = t("notSignerOrProposer");
 
   const onClick = () => {
     if (!isEligible) return;
     navigate(appNavigation.multisigPage.newOrder(multisigAddress), {
       state: {
-        orderType: "Минт жетонов",
+        orderType: t("mintJettons"),
         values: {
           jettonMinterAddress: (jettonMinterAddress || "").trim(),
           amount: (amount || "").trim(),
@@ -290,7 +295,7 @@ const ProposalApplyButton = () => {
       grey={!isEligible}
       disabled={!isEligible}
     >
-      Применить в мультикошельке
+      {t("applyInMultisig")}
     </StyledApplyButton>
   );
 
@@ -325,6 +330,8 @@ const DaoInfo = () => {
   const { proposalAddress } = useAppParams();
   const { data: proposal } = useProposalQuery(proposalAddress);
   const daoAddress = proposal?.daoAddress || "";
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   const daoMetadata = useDaoQuery(daoAddress).data?.daoMetadata;
 
@@ -338,7 +345,7 @@ const DaoInfo = () => {
         className="dao-name"
       >
         <OverflowWithTooltip
-          text={sanitizeDaoName(parseLanguage(daoMetadata?.metadataArgs.name))}
+          text={sanitizeDaoName(parseLanguage(daoMetadata?.metadataArgs.name, currentLang))}
         />
       </StyledDaoLink>
     </StyledFlexRow>

@@ -18,6 +18,7 @@ import {
 import { MULTISIG_CODE, IS_TESTNET, GRAM_LOGO_URL } from "multisig/constants";
 import { Address } from "@ton/core";
 import { MultisigInfo } from "./MultisigInfo";
+import { useMultisigTranslations } from "i18n/hooks/useMultisigTranslations";
 import { makeElipsisAddress } from "utils";
 import { WalletStyleCard } from "components";
 import {
@@ -188,6 +189,7 @@ export function MultisigList() {
   );
 
   const BLAGO_LOGO = blagoLogo;
+  const t = useMultisigTranslations();
 
   return (
     <Box className="multisigPage">
@@ -198,7 +200,7 @@ export function MultisigList() {
           <CircularProgress />
         </Box>
       ) : items.length === 0 ? (
-        <Box className="daoMultisigEmpty value">Список пуст</Box>
+        <Box className="daoMultisigEmpty value">{t.emptyList}</Box>
       ) : null}
 
       <Box className="daoMultisigList">
@@ -209,8 +211,8 @@ export function MultisigList() {
           info.isBounceable = true;
           info.isTestOnly = IS_TESTNET;
           const avatar = item.logo || item.jetton?.logo || GRAM_LOGO_URL;
-          const addressText = item.name ? makeElipsisAddress(item.address, 6) : "Мультикошелек";
-          const displayName = item.name || "Мультикошелек";
+          const addressText = item.name ? makeElipsisAddress(item.address, 6) : t.defaultName;
+          const displayName = item.name || t.defaultName;
 
           const roleBadge =
             result?.role && result.role !== "none" ? (
@@ -222,7 +224,7 @@ export function MultisigList() {
                     : "badgeProposer")
                 }
               >
-                {result.role === "signer" ? "Подписант" : "Инициатор"}
+                {result.role === "signer" ? t.signerBadge : t.proposerBadge}
               </span>
             ) : null;
 
@@ -230,7 +232,7 @@ export function MultisigList() {
             item.mine && result?.ok && !result.isMultisig ? (
               <span
                 className="daoMultisigRemoveBadge"
-                title="Скрыть карточку"
+                title={t.hideCard}
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove(item.address);
@@ -266,14 +268,14 @@ export function MultisigList() {
           onClick={() => multisigPage.create()}
         >
           <Typography className="daoMultisigCreateText">
-            Создать мультикошелек
+            {t.createMultisig}
           </Typography>
         </Box>
       </Box>
 
       <Box className="multisigFooter">
         <Button variant="outlined" onClick={() => multisigPage.import()}>
-          Импортировать
+          {t.importButton}
         </Button>
       </Box>
     </Box>

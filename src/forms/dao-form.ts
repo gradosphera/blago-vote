@@ -19,9 +19,27 @@ export const useDaoMetadataInputs = (): InputArgs<DaoMetadataForm>[] => {
       limit: TITLE_LIMIT,
     },
     {
+      label: translations.daoName,
+      type: "text",
+      name: "name_ru",
+      tooltip: translations.tooltips.daoName,
+      required: true,
+      limit: TITLE_LIMIT,
+    },
+    {
       label: translations.daoAbout,
       type: "textarea",
       name: "about_en",
+      rows: 6,
+      tooltip: translations.tooltips.daoAbout,
+      required: true,
+      isMarkdown: true,
+      limit: ABOUT_CHARS_LIMIT,
+    },
+    {
+      label: translations.daoAbout,
+      type: "textarea",
+      name: "about_ru",
       rows: 6,
       tooltip: translations.tooltips.daoAbout,
       required: true,
@@ -118,11 +136,38 @@ export const useDaoMetadataSchema = () => {
           return true;
         }
       ),
+    name_ru: Yup.string()
+      .test(
+        "name-format",
+        "Название может содержать только буквы, цифры, пробелы и дефис",
+        (value) => {
+          if (!value) return false;
+          return /^[a-zA-Zа-яА-ЯёЁ0-9\s\-]+$/.test(value);
+        }
+      )
+      .test(
+        "name-required",
+        commonTranslations.isRequired(createDaoTranslations.daoName),
+        (value) => {
+          if (!value) return false;
+          return true;
+        }
+      ),
     about_en: Yup.string().test(
       "",
       commonTranslations.isRequired(createDaoTranslations.daoAbout),
       (value, context) => {
         if (!context.parent.about_en) {
+          return false;
+        }
+        return true;
+      }
+    ),
+    about_ru: Yup.string().test(
+      "",
+      commonTranslations.isRequired(createDaoTranslations.daoAbout),
+      (value, context) => {
+        if (!context.parent.about_ru) {
           return false;
         }
         return true;

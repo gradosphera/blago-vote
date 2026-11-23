@@ -8,13 +8,16 @@ import { parseLanguage, sanitizeDaoName } from "utils";
 import { StyledFlexColumn, StyledFlexRow } from "styles";
 import { LayoutSection } from "./components";
 import { DaoDescription } from "./DaoDescription";
+import { useTranslation } from "react-i18next";
 
 export function DaoAbout() {
     const { daoAddress } = useAppParams();
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   const daoData = useDaoQuery(daoAddress).data;
   const roles = daoData?.daoRoles;
-  const daoName = sanitizeDaoName(parseLanguage(daoData?.daoMetadata?.metadataArgs?.name));
+  const daoName = sanitizeDaoName(parseLanguage(daoData?.daoMetadata?.metadataArgs?.name, currentLang));
   const translations = useCommonTranslations();
 
   return (
@@ -22,7 +25,7 @@ export function DaoAbout() {
       {daoName && (
         <StyledDaoName variant="h3">{daoName}</StyledDaoName>
       )}
-      <LayoutSection title="Описание ДАО">
+      <LayoutSection title={translations.daoDescription}>
       <DaoDescription />
       <StyledTitleContainer
         title={translations.administrators}
